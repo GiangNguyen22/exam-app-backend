@@ -1,0 +1,455 @@
+{
+  "info": {
+    "_postman_id": "6f6f2f02-3f65-4d52-95b2-fb32d8f6d0e1",
+    "name": "Exam App Backend - RBAC APIs",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth - Login Admin",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "const json = pm.response.json();",
+              "if (json && json.data && json.data.accessToken) {",
+              "  pm.collectionVariables.set('adminToken', json.data.accessToken);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth - Login Teacher",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"teacher1\",\n  \"password\": \"teacher123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "const json = pm.response.json();",
+              "if (json && json.data && json.data.accessToken) {",
+              "  pm.collectionVariables.set('teacherToken', json.data.accessToken);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth - Login Student",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"student1\",\n  \"password\": \"student123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "const json = pm.response.json();",
+              "if (json && json.data && json.data.accessToken) {",
+              "  pm.collectionVariables.set('studentToken', json.data.accessToken);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "RBAC - Unauthorized (no token)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/rbac/ping",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "rbac",
+            "ping"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 401', function () {",
+              "  pm.response.to.have.status(401);",
+              "});",
+              "const json = pm.response.json();",
+              "pm.test('ApiResponse for 401', function () {",
+              "  pm.expect(json.success).to.eql(false);",
+              "  pm.expect(json.code).to.eql(401);",
+              "  pm.expect(json.message).to.eql('Unauthorized');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "RBAC - Ping (auth required)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/rbac/ping",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "rbac",
+            "ping"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Question - Forbidden (student create question)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{studentToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"subjectId\": 1,\n  \"topicId\": 1,\n  \"content\": \"Student should be blocked\",\n  \"type\": \"SINGLE\",\n  \"difficulty\": \"EASY\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/questions",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "questions"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 403', function () {",
+              "  pm.response.to.have.status(403);",
+              "});",
+              "const json = pm.response.json();",
+              "pm.test('ApiResponse for 403', function () {",
+              "  pm.expect(json.success).to.eql(false);",
+              "  pm.expect(json.code).to.eql(403);",
+              "  pm.expect(json.message).to.eql('Forbidden');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "RBAC - question:create check",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{teacherToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/rbac/question-create-check",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "rbac",
+            "question-create-check"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Question - Create (teacher)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{teacherToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"subjectId\": 1,\n  \"topicId\": 1,\n  \"content\": \"What is Java?\",\n  \"type\": \"SINGLE\",\n  \"difficulty\": \"EASY\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/questions",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "questions"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Exam - Create (teacher)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{teacherToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Midterm Exam\",\n  \"durationMinutes\": 60,\n  \"scorePerQuestion\": 1\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/exams",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "exams"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json && json.data && json.data.id) {",
+              "  pm.collectionVariables.set('examId', json.data.id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Exam - Generate (teacher)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{teacherToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Auto Exam\",\n  \"durationMinutes\": 30,\n  \"scorePerQuestion\": 1\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/exams/generate",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "exams",
+            "generate"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Exam - Submit (student)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{studentToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"note\": \"done\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/exams/{{examId}}/submit",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "exams",
+            "{{examId}}",
+            "submit"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Result - View (teacher)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{teacherToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/results/{{examId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "results",
+            "{{examId}}"
+          ]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "teacherToken",
+      "value": ""
+    },
+    {
+      "key": "studentToken",
+      "value": ""
+    },
+    {
+      "key": "examId",
+      "value": "1"
+    }
+  ]
+}

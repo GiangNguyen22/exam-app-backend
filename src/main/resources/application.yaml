@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: exam-app-backend
+  datasource:
+    url: jdbc:mysql://localhost:3306/school_exam_db
+    username: root
+    password: "" # set to empty by default; override via environment for production
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+jwt:
+  secret: "change-me-in-production-use-env-variable-come-my-way-pleaseifyouhavetodosuremy-cow-rabbit-is-safe"
+  expiration-ms: 3600000
