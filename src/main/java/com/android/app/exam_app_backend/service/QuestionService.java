@@ -18,6 +18,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 @Service
 public class QuestionService {
 
@@ -37,6 +40,13 @@ public class QuestionService {
         this.topicRepository = topicRepository;
         this.userRepository = userRepository;
         this.auditLogService = auditLogService;
+    }
+
+    @Transactional(readOnly = true)
+    public List<QuestionResponse> getQuestions() {
+        return questionRepository.findAll().stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
     }
 
     @Transactional
@@ -64,9 +74,13 @@ public class QuestionService {
 
         Question saved = questionRepository.save(question);
         auditLogService.log(currentUser, PermissionConstants.QUESTION_CREATE, "question", saved.getId(), AuditResult.allow, "Question created");
+        return toResponse(saved);
+    }
+
+    private QuestionResponse toResponse(Question question) {
         return QuestionResponse.builder()
-                .id(saved.getId())
-                .content(saved.getContent())
+                .id(question.getId())
+                .content(question.getContent())
                 .build();
     }
 }

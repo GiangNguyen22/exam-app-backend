@@ -12,6 +12,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/exams")
@@ -21,6 +22,16 @@ public class ExamController {
 
     public ExamController(ExamService examService) {
         this.examService = examService;
+    }
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<ExamResponse>>> getExams() {
+        return ResponseEntity.ok(ApiResponse.<List<ExamResponse>>builder()
+                .success(true)
+                .code(HttpStatus.OK.value())
+                .message("Exams retrieved")
+                .data(examService.getExams())
+                .build());
     }
 
     @PostMapping

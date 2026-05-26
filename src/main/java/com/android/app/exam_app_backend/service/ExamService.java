@@ -20,8 +20,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class ExamService {
@@ -39,6 +41,13 @@ public class ExamService {
         this.examResultRepository = examResultRepository;
         this.userRepository = userRepository;
         this.auditLogService = auditLogService;
+    }
+
+    @Transactional(readOnly = true)
+    public List<ExamResponse> getExams() {
+        return examRepository.findAll().stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
     }
 
     @Transactional
@@ -60,11 +69,7 @@ public class ExamService {
 
         Exam saved = examRepository.save(exam);
         auditLogService.log(creator, PermissionConstants.EXAM_CREATE, "exam", saved.getId(), AuditResult.allow, "Exam created");
-        return ExamResponse.builder()
-                .id(saved.getId())
-                .code(saved.getCode())
-                .title(saved.getTitle())
-                .build();
+        return toResponse(saved);
     }
 
     @Transactional
@@ -109,5 +114,13 @@ public class ExamService {
         return "EX-" + UUID.randomUUID().toString().replace("-", "")
                 .substring(0, 8)
                 .toUpperCase(Locale.ROOT);
+    }
+
+    private ExamResponse toResponse(Exam exam) {
+        return ExamResponse.builder()
+                .id(exam.getId())
+                .code(exam.getCode())
+                .title(exam.getTitle())
+                .build();
     }
 }

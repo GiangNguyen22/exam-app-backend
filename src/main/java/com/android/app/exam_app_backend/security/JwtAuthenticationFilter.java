@@ -1,5 +1,7 @@
 package com.android.app.exam_app_backend.security;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -17,6 +19,8 @@ import java.io.IOException;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     private final JwtTokenProvider tokenProvider;
     private final UserDetailsService userDetailsService;
@@ -44,7 +48,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
         } catch (Exception ex) {
-            // log can be added
+            log.warn("JWT authentication failed path={} reason={}", request.getRequestURI(), ex.getClass().getSimpleName());
         }
 
         filterChain.doFilter(request, response);

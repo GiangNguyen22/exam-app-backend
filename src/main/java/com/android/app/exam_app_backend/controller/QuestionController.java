@@ -7,12 +7,14 @@ import com.android.app.exam_app_backend.service.QuestionService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.validation.Valid;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/questions")
@@ -22,6 +24,16 @@ public class QuestionController {
 
     public QuestionController(QuestionService questionService) {
         this.questionService = questionService;
+    }
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<QuestionResponse>>> getQuestions() {
+        return ResponseEntity.ok(ApiResponse.<List<QuestionResponse>>builder()
+                .success(true)
+                .code(HttpStatus.OK.value())
+                .message("Questions retrieved")
+                .data(questionService.getQuestions())
+                .build());
     }
 
     @PostMapping
