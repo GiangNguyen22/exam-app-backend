@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.validation.Valid;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -52,10 +54,15 @@ public class AuthController {
         }
 
         String jwt = tokenProvider.generateToken(authentication);
+        List<String> roles = authentication.getAuthorities().stream()
+                .map(authority -> authority.getAuthority())
+                .filter(authority -> authority.startsWith("ROLE_"))
+                .map(authority -> authority.substring("ROLE_".length()))
+                .collect(Collectors.toList());
 
-        LoginResponse response = new LoginResponse(jwt);
+        LoginResponse response = new LoginResponse(jwt, roles);
 
-        log.info("Login success username={}", loginRequest.getUsername());
+        log.info("Login success username={} roles={}", loginRequest.getUsername(), roles);
 
         return ResponseEntity.ok(
                 ApiResponse.<LoginResponse>builder()

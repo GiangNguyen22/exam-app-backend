@@ -3,6 +3,8 @@ package com.android.app.exam_app_backend.controller;
 import com.android.app.exam_app_backend.common.dto.ApiResponse;
 import com.android.app.exam_app_backend.payload.ExamCreateRequest;
 import com.android.app.exam_app_backend.payload.ExamGenerateRequest;
+import com.android.app.exam_app_backend.payload.ExamQuestionCreateRequest;
+import com.android.app.exam_app_backend.payload.ExamQuestionResponse;
 import com.android.app.exam_app_backend.payload.ExamResponse;
 import com.android.app.exam_app_backend.payload.ExamSubmitRequest;
 import com.android.app.exam_app_backend.service.ExamService;
@@ -31,6 +33,28 @@ public class ExamController {
                 .code(HttpStatus.OK.value())
                 .message("Exams retrieved")
                 .data(examService.getExams())
+                .build());
+    }
+
+    @GetMapping("/{examId}/questions")
+    public ResponseEntity<ApiResponse<List<ExamQuestionResponse>>> getExamQuestions(@PathVariable Long examId) {
+        return ResponseEntity.ok(ApiResponse.<List<ExamQuestionResponse>>builder()
+                .success(true)
+                .code(HttpStatus.OK.value())
+                .message("Exam questions retrieved")
+                .data(examService.getExamQuestions(examId))
+                .build());
+    }
+
+    @PostMapping("/{examId}/questions")
+    public ResponseEntity<ApiResponse<ExamQuestionResponse>> createQuestionForExam(@PathVariable Long examId,
+                                                                                   @Valid @RequestBody ExamQuestionCreateRequest request,
+                                                                                   Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.<ExamQuestionResponse>builder()
+                .success(true)
+                .code(HttpStatus.OK.value())
+                .message("Exam question created")
+                .data(examService.createQuestionForExam(examId, request, authentication))
                 .build());
     }
 
