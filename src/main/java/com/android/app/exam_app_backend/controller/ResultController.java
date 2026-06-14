@@ -1,6 +1,7 @@
 package com.android.app.exam_app_backend.controller;
 
 import com.android.app.exam_app_backend.common.dto.ApiResponse;
+import com.android.app.exam_app_backend.payload.ExamReportResponse;
 import com.android.app.exam_app_backend.payload.ExamResultResponse;
 import com.android.app.exam_app_backend.service.ResultService;
 import org.springframework.http.HttpStatus;
@@ -27,6 +28,16 @@ public class ResultController {
                 .code(HttpStatus.OK.value())
                 .message("Result retrieved")
                 .data(resultService.viewResult(examId))
+                .build());
+    }
+
+    @GetMapping("/exams/{examId}/report")
+    public ResponseEntity<ApiResponse<ExamReportResponse>> viewExamReport(@PathVariable Long examId) {
+        return ResponseEntity.ok(ApiResponse.<ExamReportResponse>builder()
+                .success(true)
+                .code(HttpStatus.OK.value())
+                .message("Report retrieved")
+                .data(resultService.viewExamReport(examId))
                 .build());
     }
 }

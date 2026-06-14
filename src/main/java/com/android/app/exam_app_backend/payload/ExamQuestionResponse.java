@@ -13,6 +13,8 @@ public class ExamQuestionResponse {
     private Long questionId;
     private Integer orderIndex;
     private BigDecimal score;
+    private Long subjectId;
+    private Long topicId;
     private String content;
     private String type;
     private String difficulty;
@@ -23,5 +25,7 @@ public class ExamQuestionResponse {
     public static class AnswerOptionResponse {
         private Long id;
         private String content;
+        private Boolean correct;
+        private String explanation;
     }
 }
