@@ -34,6 +34,23 @@ public class PermissionEvaluatorService {
         return allowed;
     }
 
+    public boolean hasAnyPermission(Authentication authentication, String... permissions) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return false;
+        }
+
+        for (String permission : permissions) {
+            boolean allowed = authentication.getAuthorities().stream()
+                    .anyMatch(authority -> authority.getAuthority().equals(permission));
+            if (allowed) {
+                return true;
+            }
+        }
+
+        writeDenyLog(authentication.getName(), String.join(",", permissions), "Missing required permission");
+        return false;
+    }
+
     private void writeDenyLog(String username, String permission, String reason) {
         AuditLog auditLog = new AuditLog();
         User user = userRepository.findByUsername(username).orElse(null);

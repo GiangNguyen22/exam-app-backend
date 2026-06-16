@@ -12,6 +12,7 @@ import com.android.app.exam_app_backend.repository.SubjectRepository;
 import com.android.app.exam_app_backend.repository.TopicRepository;
 import com.android.app.exam_app_backend.repository.UserRepository;
 import com.android.app.exam_app_backend.repository.UserRoleRepository;
+import com.android.app.exam_app_backend.security.PermissionConstants;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -37,13 +38,16 @@ public class DataInitializer {
                                                PasswordEncoder passwordEncoder) {
         return args -> {
             Set<String> defaultPermissions = new LinkedHashSet<>(Arrays.asList(
-                    "question:create",
-                    "question:update",
-                    "question:delete",
-                    "exam:create",
-                    "exam:generate",
-                    "exam:submit",
-                    "exam:viewResults"
+                    PermissionConstants.QUESTION_CREATE,
+                    PermissionConstants.QUESTION_VIEW,
+                    PermissionConstants.QUESTION_UPDATE,
+                    PermissionConstants.QUESTION_DELETE,
+                    PermissionConstants.QUESTION_IMPORT,
+                    PermissionConstants.EXAM_CREATE,
+                    PermissionConstants.EXAM_GENERATE,
+                    PermissionConstants.EXAM_SUBMIT,
+                    PermissionConstants.EXAM_VIEW_RESULTS,
+                    PermissionConstants.EXAM_VIEW_OWN_RESULTS
             ));
 
             Map<String, Permission> permissionMap = defaultPermissions.stream()
@@ -64,16 +68,18 @@ public class DataInitializer {
 
             adminRole.setPermissions(new HashSet<>(permissionMap.values()));
             teacherRole.setPermissions(new HashSet<>(Arrays.asList(
-                    permissionMap.get("question:create"),
-                    permissionMap.get("question:update"),
-                    permissionMap.get("question:delete"),
-                    permissionMap.get("exam:create"),
-                    permissionMap.get("exam:generate"),
-                    permissionMap.get("exam:viewResults")
+                    permissionMap.get(PermissionConstants.QUESTION_CREATE),
+                    permissionMap.get(PermissionConstants.QUESTION_VIEW),
+                    permissionMap.get(PermissionConstants.QUESTION_UPDATE),
+                    permissionMap.get(PermissionConstants.QUESTION_DELETE),
+                    permissionMap.get(PermissionConstants.QUESTION_IMPORT),
+                    permissionMap.get(PermissionConstants.EXAM_CREATE),
+                    permissionMap.get(PermissionConstants.EXAM_GENERATE),
+                    permissionMap.get(PermissionConstants.EXAM_VIEW_RESULTS)
             )));
             studentRole.setPermissions(new HashSet<>(Arrays.asList(
-                    permissionMap.get("exam:submit"),
-                    permissionMap.get("exam:viewResults")
+                    permissionMap.get(PermissionConstants.EXAM_SUBMIT),
+                    permissionMap.get(PermissionConstants.EXAM_VIEW_OWN_RESULTS)
             )));
 
             roleRepository.save(adminRole);

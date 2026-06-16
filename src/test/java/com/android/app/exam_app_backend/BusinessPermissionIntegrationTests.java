@@ -5,10 +5,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -38,6 +40,24 @@ class BusinessPermissionIntegrationTests {
                         .header("Authorization", "Bearer " + studentToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"subjectId\":1,\"topicId\":1,\"content\":\"Blocked\",\"type\":\"SINGLE\",\"difficulty\":\"EASY\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void teacherCanListQuestionBank() throws Exception {
+        String teacherToken = loginAndExtractToken("teacher1", "teacher123");
+
+        mockMvc.perform(get("/api/questions")
+                        .header("Authorization", "Bearer " + teacherToken))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void studentCannotListQuestionBank() throws Exception {
+        String studentToken = loginAndExtractToken("student1", "student123");
+
+        mockMvc.perform(get("/api/questions")
+                        .header("Authorization", "Bearer " + studentToken))
                 .andExpect(status().isForbidden());
     }
 
@@ -81,6 +101,49 @@ class BusinessPermissionIntegrationTests {
         mockMvc.perform(get("/api/results/" + examId)
                         .header("Authorization", "Bearer " + teacherToken))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void studentCanViewOwnResult() throws Exception {
+        String adminToken = loginAndExtractToken("admin", "admin123");
+        String studentToken = loginAndExtractToken("student1", "student123");
+        Long examId = createExamAndGetId(adminToken);
+
+        mockMvc.perform(post("/api/exams/" + examId + "/submit")
+                        .header("Authorization", "Bearer " + studentToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"note\":\"done\"}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/results/" + examId)
+                        .header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void studentCannotViewExamReport() throws Exception {
+        String adminToken = loginAndExtractToken("admin", "admin123");
+        String studentToken = loginAndExtractToken("student1", "student123");
+        Long examId = createExamAndGetId(adminToken);
+
+        mockMvc.perform(get("/api/results/exams/" + examId + "/report")
+                        .header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void studentCannotImportQuestions() throws Exception {
+        String studentToken = loginAndExtractToken("student1", "student123");
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "questions.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                new byte[]{1});
+
+        mockMvc.perform(multipart("/api/questions/import")
+                        .file(file)
+                        .header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isForbidden());
     }
 
     private Long createExamAndGetId(String teacherToken) throws Exception {

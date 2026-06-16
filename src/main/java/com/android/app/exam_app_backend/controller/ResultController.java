@@ -2,10 +2,12 @@ package com.android.app.exam_app_backend.controller;
 
 import com.android.app.exam_app_backend.common.dto.ApiResponse;
 import com.android.app.exam_app_backend.payload.ExamReportResponse;
+import com.android.app.exam_app_backend.payload.ExamResultDetailResponse;
 import com.android.app.exam_app_backend.payload.ExamResultResponse;
 import com.android.app.exam_app_backend.service.ResultService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,12 +24,24 @@ public class ResultController {
     }
 
     @GetMapping("/{examId}")
-    public ResponseEntity<ApiResponse<ExamResultResponse>> viewResult(@PathVariable Long examId) {
+    public ResponseEntity<ApiResponse<ExamResultResponse>> viewResult(@PathVariable Long examId,
+                                                                      Authentication authentication) {
         return ResponseEntity.ok(ApiResponse.<ExamResultResponse>builder()
                 .success(true)
                 .code(HttpStatus.OK.value())
                 .message("Result retrieved")
-                .data(resultService.viewResult(examId))
+                .data(resultService.viewResult(examId, authentication))
+                .build());
+    }
+
+    @GetMapping("/{examId}/detail")
+    public ResponseEntity<ApiResponse<ExamResultDetailResponse>> viewResultDetail(@PathVariable Long examId,
+                                                                                  Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.<ExamResultDetailResponse>builder()
+                .success(true)
+                .code(HttpStatus.OK.value())
+                .message("Result detail retrieved")
+                .data(resultService.viewResultDetail(examId, authentication))
                 .build());
     }
 

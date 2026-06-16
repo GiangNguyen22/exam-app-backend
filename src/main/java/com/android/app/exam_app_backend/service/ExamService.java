@@ -115,8 +115,10 @@ public class ExamService {
             throw new IllegalArgumentException("Exam is no longer available");
         }
 
+        // Học sinh không được nhận đáp án đúng / giải thích trong lúc làm bài.
+        boolean includeCorrectness = !isStudent(authentication);
         return examQuestionRepository.findByExamIdOrderByOrderIndexAsc(examId).stream()
-                .map(this::toQuestionResponse)
+                .map(examQuestion -> toQuestionResponse(examQuestion, includeCorrectness))
                 .collect(Collectors.toList());
     }
 
@@ -466,6 +468,10 @@ public class ExamService {
     }
 
     private ExamQuestionResponse toQuestionResponse(ExamQuestion examQuestion) {
+        return toQuestionResponse(examQuestion, true);
+    }
+
+    private ExamQuestionResponse toQuestionResponse(ExamQuestion examQuestion, boolean includeCorrectness) {
         return ExamQuestionResponse.builder()
                 .examQuestionId(examQuestion.getId())
                 .questionId(examQuestion.getQuestion().getId())
@@ -480,8 +486,9 @@ public class ExamService {
                         .map(answer -> ExamQuestionResponse.AnswerOptionResponse.builder()
                                 .id(answer.getId())
                                 .content(answer.getContent())
-                                .correct(answer.getIsCorrect())
-                                .explanation(answer.getExplanation())
+                                // Chỉ trả cờ đúng/sai và giải thích cho giáo viên/quản trị.
+                                .correct(includeCorrectness ? answer.getIsCorrect() : null)
+                                .explanation(includeCorrectness ? answer.getExplanation() : null)
                                 .build())
                         .collect(Collectors.toList()))
                 .build();

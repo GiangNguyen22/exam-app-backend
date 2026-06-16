@@ -43,6 +43,7 @@ public class QuestionService {
     }
 
     @Transactional(readOnly = true)
+    @PreAuthorize("@permissionEvaluator.hasPermission(authentication, T(com.android.app.exam_app_backend.security.PermissionConstants).QUESTION_VIEW)")
     public List<QuestionResponse> getQuestions() {
         return questionRepository.findAll().stream()
                 .map(this::toResponse)
