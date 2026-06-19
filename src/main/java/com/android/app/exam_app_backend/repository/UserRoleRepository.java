@@ -9,4 +9,6 @@ import java.util.Optional;
 
 public interface UserRoleRepository extends JpaRepository<UserRole, Long> {
     Optional<UserRole> findByUserAndRole(User user, Role role);
+
+    void deleteByUser(User user);
 }

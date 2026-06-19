@@ -2,6 +2,7 @@ package com.android.app.exam_app_backend.security;
 
 import com.android.app.exam_app_backend.entity.User;
 import com.android.app.exam_app_backend.entity.UserRole;
+import com.android.app.exam_app_backend.entity.enums.UserStatus;
 import com.android.app.exam_app_backend.repository.UserRepository;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -47,8 +48,8 @@ public class CustomUserDetailsService implements UserDetailsService {
                 .username(user.getUsername())
                 .password(user.getPasswordHash())
                 .authorities(authorities)
-                .accountLocked(false)
-                .disabled(false)
+                .accountLocked(user.getStatus() == UserStatus.LOCKED)
+                .disabled(user.getStatus() == UserStatus.PENDING)
                 .build();
     }
 }
