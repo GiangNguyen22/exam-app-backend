@@ -312,7 +312,12 @@ public class ExamService {
                 : questionRepository.findBySubjectIdAndTopicIdAndDifficulty(subjectId, topicId, difficulty);
         Collections.shuffle(candidates);
         if (candidates.size() < requestedCount) {
-            throw new IllegalArgumentException("Not enough " + difficulty.name().toLowerCase(Locale.ROOT) + " questions");
+            String scope = topicId == null ? "selected subject" : "selected subject/topic";
+            throw new IllegalArgumentException(
+                    "Not enough " + difficulty.name().toLowerCase(Locale.ROOT) +
+                            " questions in " + scope +
+                            ": required " + requestedCount + ", found " + candidates.size()
+            );
         }
         return new ArrayList<>(candidates.subList(0, requestedCount));
     }

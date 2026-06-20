@@ -10,11 +10,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -52,6 +55,30 @@ public class QuestionController {
                 .code(HttpStatus.OK.value())
                 .message("Question created")
                 .data(questionService.createQuestion(request, authentication))
+                .build());
+    }
+
+    @PutMapping("/{questionId}")
+    public ResponseEntity<ApiResponse<QuestionResponse>> updateQuestion(@PathVariable Long questionId,
+                                                                        @Valid @RequestBody QuestionCreateRequest request,
+                                                                        Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.<QuestionResponse>builder()
+                .success(true)
+                .code(HttpStatus.OK.value())
+                .message("Question updated")
+                .data(questionService.updateQuestion(questionId, request, authentication))
+                .build());
+    }
+
+    @DeleteMapping("/{questionId}")
+    public ResponseEntity<ApiResponse<String>> deleteQuestion(@PathVariable Long questionId,
+                                                              Authentication authentication) {
+        questionService.deleteQuestion(questionId, authentication);
+        return ResponseEntity.ok(ApiResponse.<String>builder()
+                .success(true)
+                .code(HttpStatus.OK.value())
+                .message("Question deleted")
+                .data("Question deleted: " + questionId)
                 .build());
     }
 
