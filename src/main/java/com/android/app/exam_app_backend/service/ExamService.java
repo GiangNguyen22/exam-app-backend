@@ -254,6 +254,18 @@ public class ExamService {
     }
 
     @Transactional
+    @PreAuthorize("@permissionEvaluator.hasPermission(authentication, T(com.android.app.exam_app_backend.security.PermissionConstants).EXAM_DELETE)")
+    public void deleteExam(Long examId, Authentication authentication) {
+        Exam exam = examRepository.findById(examId)
+                .orElseThrow(() -> new ResourceNotFoundException("Exam not found: " + examId));
+        User currentUser = userRepository.findByUsername(authentication.getName())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + authentication.getName()));
+
+        examRepository.delete(exam);
+        auditLogService.log(currentUser, PermissionConstants.EXAM_DELETE, "exam", examId, AuditResult.allow, "Exam deleted");
+    }
+
+    @Transactional
     @PreAuthorize("@permissionEvaluator.hasPermission(authentication, T(com.android.app.exam_app_backend.security.PermissionConstants).EXAM_GENERATE)")
     public ExamResponse generateExam(ExamGenerateRequest request, Authentication authentication) {
         User creator = userRepository.findByUsername(authentication.getName())

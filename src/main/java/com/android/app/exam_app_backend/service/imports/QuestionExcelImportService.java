@@ -31,6 +31,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -88,6 +89,7 @@ public class QuestionExcelImportService {
         }
 
         List<Question> questions = new ArrayList<>();
+        Set<String> importKeys = new HashSet<>();
         int importedAnswers = 0;
 
         for (DraftQuestion draft : drafts.values()) {
@@ -101,6 +103,17 @@ public class QuestionExcelImportService {
             }
             if (draft.content == null || draft.content.isBlank()) {
                 errors.add(error(draft.firstRowNumber, draft.key, "content", "content is required"));
+                continue;
+            }
+
+            String normalizedContent = draft.content.trim();
+            String duplicateKey = buildDuplicateKey(subject.getId(), topic == null ? null : topic.getId(), normalizedContent, type, difficulty);
+            if (!importKeys.add(duplicateKey)) {
+                errors.add(error(draft.firstRowNumber, draft.key, "content", "Duplicate question in import file. This row was skipped"));
+                continue;
+            }
+            if (questionRepository.existsDuplicateQuestion(subject.getId(), topic == null ? null : topic.getId(), normalizedContent, type, difficulty)) {
+                errors.add(error(draft.firstRowNumber, draft.key, "content", "Question already exists. This row was skipped"));
                 continue;
             }
 
@@ -131,7 +144,7 @@ public class QuestionExcelImportService {
             Question question = new Question();
             question.setSubject(subject);
             question.setTopic(topic);
-            question.setContent(draft.content.trim());
+            question.setContent(normalizedContent);
             question.setType(type);
             question.setDifficulty(difficulty);
             question.setCreatedBy(currentUser);
@@ -149,21 +162,30 @@ public class QuestionExcelImportService {
             questions.add(question);
         }
 
-        if (!errors.isEmpty()) {
-            return failure(errors, drafts.size());
+        if (!questions.isEmpty()) {
+            questionRepository.saveAll(questions);
+            auditLogService.log(currentUser, PermissionConstants.QUESTION_IMPORT, "question", null, AuditResult.allow,
+                    "Imported " + questions.size() + " questions from Excel");
         }
 
-        questionRepository.saveAll(questions);
-        auditLogService.log(currentUser, PermissionConstants.QUESTION_IMPORT, "question", null, AuditResult.allow,
-                "Imported " + questions.size() + " questions from Excel");
-
+        boolean success = !questions.isEmpty() || errors.isEmpty();
         return QuestionImportResponse.builder()
-                .success(true)
+                .success(success)
                 .totalGroups(drafts.size())
                 .importedQuestions(questions.size())
                 .importedAnswers(importedAnswers)
-                .errors(List.of())
+                .errors(errors)
                 .build();
+    }
+
+    private String buildDuplicateKey(Long subjectId, Long topicId, String content, QuestionType type, Difficulty difficulty) {
+        return String.join("|",
+                String.valueOf(subjectId),
+                String.valueOf(topicId),
+                content.trim().toLowerCase(Locale.ROOT),
+                type.name(),
+                difficulty.name()
+        );
     }
 
     private Map<String, DraftQuestion> parseSheet(Sheet sheet, List<QuestionImportErrorResponse> errors) {

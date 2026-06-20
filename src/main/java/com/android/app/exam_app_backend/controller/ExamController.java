@@ -96,6 +96,18 @@ public class ExamController {
                 .build());
     }
 
+    @DeleteMapping("/{examId}")
+    public ResponseEntity<ApiResponse<String>> deleteExam(@PathVariable Long examId,
+                                                          Authentication authentication) {
+        examService.deleteExam(examId, authentication);
+        return ResponseEntity.ok(ApiResponse.<String>builder()
+                .success(true)
+                .code(HttpStatus.OK.value())
+                .message("Exam deleted")
+                .data("Exam deleted: " + examId)
+                .build());
+    }
+
     @PostMapping("/generate")
     public ResponseEntity<ApiResponse<ExamResponse>> generateExam(@Valid @RequestBody ExamGenerateRequest request,
                                                                   Authentication authentication) {

@@ -49,6 +49,7 @@ public class DataInitializer {
                     PermissionConstants.USER_LOCK,
                     PermissionConstants.AUDIT_VIEW,
                     PermissionConstants.EXAM_CREATE,
+                    PermissionConstants.EXAM_DELETE,
                     PermissionConstants.EXAM_GENERATE,
                     PermissionConstants.EXAM_SUBMIT,
                     PermissionConstants.EXAM_VIEW_RESULTS,
@@ -79,6 +80,7 @@ public class DataInitializer {
                     permissionMap.get(PermissionConstants.QUESTION_DELETE),
                     permissionMap.get(PermissionConstants.QUESTION_IMPORT),
                     permissionMap.get(PermissionConstants.EXAM_CREATE),
+                    permissionMap.get(PermissionConstants.EXAM_DELETE),
                     permissionMap.get(PermissionConstants.EXAM_GENERATE),
                     permissionMap.get(PermissionConstants.EXAM_VIEW_RESULTS)
             )));
@@ -153,4 +155,3 @@ public class DataInitializer {
         }
     }
 }
-
