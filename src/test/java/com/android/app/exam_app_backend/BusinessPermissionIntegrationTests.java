@@ -28,7 +28,7 @@ class BusinessPermissionIntegrationTests {
         mockMvc.perform(post("/api/questions")
                         .header("Authorization", "Bearer " + teacherToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"subjectId\":1,\"topicId\":1,\"content\":\"What is Java?\",\"type\":\"SINGLE\",\"difficulty\":\"EASY\"}"))
+                        .content("{\"subjectId\":1,\"topicId\":1,\"content\":\"What is Java?\",\"type\":\"SINGLE\",\"difficulty\":\"EASY\",\"answers\":[{\"content\":\"A language\",\"correct\":true},{\"content\":\"A database\",\"correct\":false}]}"))
                 .andExpect(status().isOk());
     }
 
@@ -39,7 +39,7 @@ class BusinessPermissionIntegrationTests {
         mockMvc.perform(post("/api/questions")
                         .header("Authorization", "Bearer " + studentToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"subjectId\":1,\"topicId\":1,\"content\":\"Blocked\",\"type\":\"SINGLE\",\"difficulty\":\"EASY\"}"))
+                        .content("{\"subjectId\":1,\"topicId\":1,\"content\":\"Blocked\",\"type\":\"SINGLE\",\"difficulty\":\"EASY\",\"answers\":[{\"content\":\"Allowed\",\"correct\":true},{\"content\":\"Denied\",\"correct\":false}]}"))
                 .andExpect(status().isForbidden());
     }
 

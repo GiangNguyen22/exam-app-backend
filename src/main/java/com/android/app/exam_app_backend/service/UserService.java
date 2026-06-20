@@ -15,6 +15,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Year;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -55,7 +56,9 @@ public class UserService {
 
     @Transactional
     public UserProfileResponse createUser(UserCreateRequest request, String actorUsername) {
-        validateCreateRequest(request);
+        String studentId = resolveStudentId(request);
+        String employeeCode = resolveEmployeeCode(request);
+        validateCreateRequest(request, studentId, employeeCode);
 
         User user = new User();
         user.setUsername(request.getUsername().trim());
@@ -63,8 +66,8 @@ public class UserService {
         user.setFullName(request.getFullName().trim());
         user.setEmail(blankToNull(request.getEmail()));
         user.setPhone(blankToNull(request.getPhone()));
-        user.setStudentId(blankToNull(request.getStudentId()));
-        user.setEmployeeCode(blankToNull(request.getEmployeeCode()));
+        user.setStudentId(studentId);
+        user.setEmployeeCode(employeeCode);
         user.setStatus(request.getStatus() == null ? UserStatus.ACTIVE : request.getStatus());
 
         User savedUser = userRepository.save(user);
@@ -132,7 +135,7 @@ public class UserService {
                 .build();
     }
 
-    private void validateCreateRequest(UserCreateRequest request) {
+    private void validateCreateRequest(UserCreateRequest request, String studentId, String employeeCode) {
         String username = request.getUsername().trim();
         if (userRepository.existsByUsername(username)) {
             throw new IllegalArgumentException("Username already exists");
@@ -141,14 +144,56 @@ public class UserService {
         if (email != null && userRepository.existsByEmail(email)) {
             throw new IllegalArgumentException("Email already exists");
         }
-        String studentId = blankToNull(request.getStudentId());
         if (studentId != null && userRepository.existsByStudentId(studentId)) {
             throw new IllegalArgumentException("Student ID already exists");
         }
-        String employeeCode = blankToNull(request.getEmployeeCode());
         if (employeeCode != null && userRepository.existsByEmployeeCode(employeeCode)) {
             throw new IllegalArgumentException("Employee code already exists");
         }
+    }
+
+    private String resolveStudentId(UserCreateRequest request) {
+        String studentId = blankToNull(request.getStudentId());
+        if (studentId != null || !hasRole(request.getRoles(), "STUDENT")) {
+            return studentId;
+        }
+        return generateUniqueStudentId();
+    }
+
+    private String resolveEmployeeCode(UserCreateRequest request) {
+        String employeeCode = blankToNull(request.getEmployeeCode());
+        if (employeeCode != null || (!hasRole(request.getRoles(), "TEACHER") && !hasRole(request.getRoles(), "ADMIN"))) {
+            return employeeCode;
+        }
+        return generateUniqueEmployeeCode();
+    }
+
+    private String generateUniqueStudentId() {
+        return generateUniqueCode("SV", code -> userRepository.existsByStudentId(code));
+    }
+
+    private String generateUniqueEmployeeCode() {
+        return generateUniqueCode("NV", code -> userRepository.existsByEmployeeCode(code));
+    }
+
+    private String generateUniqueCode(String prefix, java.util.function.Predicate<String> exists) {
+        int year = Year.now().getValue();
+        for (int index = 1; index <= 9999; index++) {
+            String code = String.format(Locale.ROOT, "%s%d%04d", prefix, year, index);
+            if (!exists.test(code)) {
+                return code;
+            }
+        }
+        throw new IllegalStateException("Cannot generate unique code for prefix " + prefix);
+    }
+
+    private boolean hasRole(List<String> roleNames, String roleName) {
+        if (roleNames == null) {
+            return false;
+        }
+        return roleNames.stream()
+                .map(this::normalizeRoleLabel)
+                .anyMatch(roleName::equals);
     }
 
     private void updateUniqueFields(User user, UserUpdateRequest request) {

@@ -27,6 +27,7 @@ public class ExamReportResponse {
     public static class StudentResult {
         private Long resultId;
         private Long studentId;
+        private String studentCode;
         private String studentName;
         private String username;
         private BigDecimal score;

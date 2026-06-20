@@ -21,6 +21,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -37,24 +38,26 @@ public class DataInitializer {
                                                TopicRepository topicRepository,
                                                PasswordEncoder passwordEncoder) {
         return args -> {
-            Set<String> defaultPermissions = new LinkedHashSet<>(Arrays.asList(
-                    PermissionConstants.QUESTION_CREATE,
-                    PermissionConstants.QUESTION_VIEW,
-                    PermissionConstants.QUESTION_UPDATE,
-                    PermissionConstants.QUESTION_DELETE,
-                    PermissionConstants.QUESTION_IMPORT,
-                    PermissionConstants.USER_VIEW,
-                    PermissionConstants.USER_CREATE,
-                    PermissionConstants.USER_UPDATE,
-                    PermissionConstants.USER_LOCK,
-                    PermissionConstants.AUDIT_VIEW,
-                    PermissionConstants.EXAM_CREATE,
-                    PermissionConstants.EXAM_DELETE,
-                    PermissionConstants.EXAM_GENERATE,
-                    PermissionConstants.EXAM_SUBMIT,
-                    PermissionConstants.EXAM_VIEW_RESULTS,
-                    PermissionConstants.EXAM_VIEW_OWN_RESULTS
-            ));
+            Map<String, String> permissionDescriptions = new LinkedHashMap<>();
+            permissionDescriptions.put(PermissionConstants.QUESTION_CREATE, "Tạo câu hỏi trong ngân hàng câu hỏi hoặc thêm câu hỏi vào đề thi");
+            permissionDescriptions.put(PermissionConstants.QUESTION_VIEW, "Xem danh sách và chi tiết câu hỏi");
+            permissionDescriptions.put(PermissionConstants.QUESTION_UPDATE, "Chỉnh sửa nội dung, đáp án và thông tin câu hỏi");
+            permissionDescriptions.put(PermissionConstants.QUESTION_DELETE, "Xóa câu hỏi khỏi ngân hàng câu hỏi");
+            permissionDescriptions.put(PermissionConstants.QUESTION_IMPORT, "Import nhiều câu hỏi từ file Excel");
+            permissionDescriptions.put(PermissionConstants.USER_VIEW, "Xem danh sách và hồ sơ tài khoản người dùng");
+            permissionDescriptions.put(PermissionConstants.USER_CREATE, "Tạo tài khoản admin, giáo viên hoặc học sinh");
+            permissionDescriptions.put(PermissionConstants.USER_UPDATE, "Cập nhật thông tin tài khoản và gán vai trò");
+            permissionDescriptions.put(PermissionConstants.USER_LOCK, "Khóa hoặc mở khóa tài khoản người dùng");
+            permissionDescriptions.put(PermissionConstants.AUDIT_VIEW, "Xem nhật ký audit và lịch sử kiểm tra quyền");
+            permissionDescriptions.put(PermissionConstants.RBAC_MANAGE, "Quản lý phân quyền: xem role, xem permission và gán permission cho role");
+            permissionDescriptions.put(PermissionConstants.EXAM_CREATE, "Tạo hoặc cập nhật đề thi");
+            permissionDescriptions.put(PermissionConstants.EXAM_DELETE, "Xem đề thi");
+            permissionDescriptions.put(PermissionConstants.EXAM_GENERATE, "Tự động sinh đề thi từ ngân hàng câu hỏi");
+            permissionDescriptions.put(PermissionConstants.EXAM_SUBMIT, "Nộp bài thi của học sinh");
+            permissionDescriptions.put(PermissionConstants.EXAM_VIEW_RESULTS, "Xem báo cáo và kết quả thi của tất cả học sinh");
+            permissionDescriptions.put(PermissionConstants.EXAM_VIEW_OWN_RESULTS, "Xem kết quả thi của chính học sinh đang đăng nhập");
+
+            Set<String> defaultPermissions = new LinkedHashSet<>(permissionDescriptions.keySet());
 
             Map<String, Permission> permissionMap = defaultPermissions.stream()
                     .collect(Collectors.toMap(
@@ -67,6 +70,13 @@ public class DataInitializer {
                                         return permissionRepository.save(p);
                                     })
                     ));
+            permissionMap.forEach((permissionName, permission) -> {
+                String description = permissionDescriptions.get(permissionName);
+                if (description != null && !description.equals(permission.getDescription())) {
+                    permission.setDescription(description);
+                    permissionRepository.save(permission);
+                }
+            });
 
             Role adminRole = upsertRole(roleRepository, "ADMIN", "System administrator");
             Role teacherRole = upsertRole(roleRepository, "TEACHER", "Teacher role");

@@ -238,6 +238,7 @@ public class ResultService {
         return ExamReportResponse.StudentResult.builder()
                 .resultId(result.getId())
                 .studentId(result.getStudent().getId())
+                .studentCode(result.getStudent().getStudentId())
                 .studentName(result.getStudent().getFullName())
                 .username(result.getStudent().getUsername())
                 .score(result.getScore())
