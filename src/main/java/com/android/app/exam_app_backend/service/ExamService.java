@@ -29,6 +29,9 @@ import com.android.app.exam_app_backend.repository.StudentResponseRepository;
 import com.android.app.exam_app_backend.repository.SubjectRepository;
 import com.android.app.exam_app_backend.repository.TopicRepository;
 import com.android.app.exam_app_backend.repository.UserRepository;
+import com.android.app.exam_app_backend.entity.StudentGroup;
+import com.android.app.exam_app_backend.repository.StudentGroupMemberRepository;
+import com.android.app.exam_app_backend.repository.StudentGroupRepository;
 import com.android.app.exam_app_backend.security.PermissionConstants;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -39,6 +42,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -60,6 +64,8 @@ public class ExamService {
     private final UserRepository userRepository;
     private final StudentResponseRepository studentResponseRepository;
     private final AuditLogService auditLogService;
+    private final StudentGroupMemberRepository studentGroupMemberRepository;
+    private final StudentGroupRepository studentGroupRepository;
 
     public ExamService(ExamRepository examRepository,
                        ExamQuestionRepository examQuestionRepository,
@@ -70,7 +76,9 @@ public class ExamService {
                        TopicRepository topicRepository,
                        UserRepository userRepository,
                        StudentResponseRepository studentResponseRepository,
-                       AuditLogService auditLogService) {
+                       AuditLogService auditLogService,
+                       StudentGroupMemberRepository studentGroupMemberRepository,
+                       StudentGroupRepository studentGroupRepository) {
         this.examRepository = examRepository;
         this.examQuestionRepository = examQuestionRepository;
         this.examResultRepository = examResultRepository;
@@ -81,6 +89,8 @@ public class ExamService {
         this.userRepository = userRepository;
         this.studentResponseRepository = studentResponseRepository;
         this.auditLogService = auditLogService;
+        this.studentGroupMemberRepository = studentGroupMemberRepository;
+        this.studentGroupRepository = studentGroupRepository;
     }
 
     @Transactional(readOnly = true)
@@ -89,17 +99,41 @@ public class ExamService {
                 .anyMatch(authority -> "ROLE_STUDENT".equals(authority.getAuthority()));
         LocalDateTime now = LocalDateTime.now();
 
+        List<Long> userGroupIds = null;
+        if (studentView) {
+            userGroupIds = userRepository.findByUsername(authentication.getName())
+                    .map(user -> studentGroupMemberRepository.findByUserId(user.getId()).stream()
+                            .map(m -> m.getGroup().getId())
+                            .collect(Collectors.toList()))
+                    .orElse(null);
+        }
+
+        List<Long> finalUserGroupIds = userGroupIds;
         return examRepository.findAll().stream()
-                .filter(exam -> !studentView || isExamVisibleToStudent(exam, now))
+                .filter(exam -> !studentView || isExamVisibleToStudent(exam, now, finalUserGroupIds))
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
 
-    private boolean isExamVisibleToStudent(Exam exam, LocalDateTime now) {
+    private boolean isExamVisibleToStudent(Exam exam, LocalDateTime now, List<Long> userGroupIds) {
         if (exam.getStartTime() != null && now.isBefore(exam.getStartTime())) {
             return false;
         }
-        return exam.getEndTime() == null || now.isBefore(exam.getEndTime());
+        if (exam.getEndTime() != null && !now.isBefore(exam.getEndTime())) {
+            return false;
+        }
+        if (exam.getGroups() != null && !exam.getGroups().isEmpty()) {
+            if (userGroupIds == null || userGroupIds.isEmpty()) return false;
+            return exam.getGroups().stream().anyMatch(g -> userGroupIds.contains(g.getId()));
+        }
+        return true;
+    }
+
+    private List<Long> getUserGroupIds(String username) {
+        return userRepository.findByUsername(username)
+                .map(user -> studentGroupMemberRepository.findByUserId(user.getId()).stream()
+                        .map(m -> m.getGroup().getId()).collect(Collectors.toList()))
+                .orElse(List.of());
     }
 
     private boolean isStudent(Authentication authentication) {
@@ -111,7 +145,8 @@ public class ExamService {
     public List<ExamQuestionResponse> getExamQuestions(Long examId, Authentication authentication) {
         Exam exam = examRepository.findById(examId)
                 .orElseThrow(() -> new ResourceNotFoundException("Exam not found: " + examId));
-        if (isStudent(authentication) && !isExamVisibleToStudent(exam, LocalDateTime.now())) {
+        if (isStudent(authentication) && !isExamVisibleToStudent(exam, LocalDateTime.now(),
+                getUserGroupIds(authentication.getName()))) {
             throw new IllegalArgumentException("Exam is no longer available");
         }
 
@@ -143,6 +178,7 @@ public class ExamService {
         question.setContent(request.getContent());
         question.setType(request.getType());
         question.setDifficulty(request.getDifficulty());
+        question.setImageUrl(request.getImageUrl());
         question.setCreatedBy(creator);
         Question savedQuestion = questionRepository.save(question);
 
@@ -188,6 +224,7 @@ public class ExamService {
         question.setContent(request.getContent());
         question.setType(request.getType());
         question.setDifficulty(request.getDifficulty());
+        question.setImageUrl(request.getImageUrl());
         question.getAnswers().clear();
         request.getAnswers().forEach(answerRequest -> {
             Answer answer = new Answer();
@@ -227,6 +264,11 @@ public class ExamService {
         exam.setShuffleAnswers(request.getShuffleAnswers());
         exam.setCreatedBy(creator);
 
+        if (request.getGroupIds() != null && !request.getGroupIds().isEmpty()) {
+            Set<StudentGroup> groups = new HashSet<>(studentGroupRepository.findAllById(request.getGroupIds()));
+            exam.setGroups(groups);
+        }
+
         Exam saved = examRepository.save(exam);
         auditLogService.log(creator, PermissionConstants.EXAM_CREATE, "exam", saved.getId(), AuditResult.allow, "Exam created");
         return toResponse(saved);
@@ -247,6 +289,12 @@ public class ExamService {
         exam.setEndTime(request.getEndTime());
         exam.setShuffleQuestions(request.getShuffleQuestions());
         exam.setShuffleAnswers(request.getShuffleAnswers());
+
+        if (request.getGroupIds() != null) {
+            Set<StudentGroup> groups = request.getGroupIds().isEmpty() ? new HashSet<>() :
+                    new HashSet<>(studentGroupRepository.findAllById(request.getGroupIds()));
+            exam.setGroups(groups);
+        }
 
         Exam saved = examRepository.save(exam);
         auditLogService.log(updater, PermissionConstants.EXAM_CREATE, "exam", saved.getId(), AuditResult.allow, "Exam updated");
@@ -296,9 +344,14 @@ public class ExamService {
         exam.setScorePerQuestion(request.getScorePerQuestion());
         exam.setShuffleQuestions(true);
         exam.setShuffleAnswers(true);
-        exam.setStartTime(LocalDateTime.now());
-        exam.setEndTime(LocalDateTime.now().plusMinutes(request.getDurationMinutes()));
+        exam.setStartTime(request.getStartTime() != null ? request.getStartTime() : LocalDateTime.now());
+        exam.setEndTime(request.getEndTime() != null ? request.getEndTime() : LocalDateTime.now().plusMinutes(request.getDurationMinutes()));
         exam.setCreatedBy(creator);
+
+        if (request.getGroupIds() != null && !request.getGroupIds().isEmpty()) {
+            Set<StudentGroup> groups = new HashSet<>(studentGroupRepository.findAllById(request.getGroupIds()));
+            exam.setGroups(groups);
+        }
 
         Exam savedExam = examRepository.save(exam);
         int orderIndex = 1;
@@ -339,7 +392,8 @@ public class ExamService {
     public String submitExam(Long examId, ExamSubmitRequest request, Authentication authentication) {
         Exam exam = examRepository.findById(examId)
                 .orElseThrow(() -> new ResourceNotFoundException("Exam not found: " + examId));
-        if (isStudent(authentication) && !isExamVisibleToStudent(exam, LocalDateTime.now())) {
+        if (isStudent(authentication) && !isExamVisibleToStudent(exam, LocalDateTime.now(),
+                getUserGroupIds(authentication.getName()))) {
             throw new IllegalArgumentException("Exam is no longer available");
         }
         User student = userRepository.findByUsername(authentication.getName())
@@ -471,6 +525,8 @@ public class ExamService {
     }
 
     private ExamResponse toResponse(Exam exam) {
+        List<Long> groupIds = exam.getGroups() == null ? null :
+                exam.getGroups().stream().map(StudentGroup::getId).collect(Collectors.toList());
         return ExamResponse.builder()
                 .id(exam.getId())
                 .code(exam.getCode())
@@ -481,6 +537,7 @@ public class ExamService {
                 .endTime(exam.getEndTime())
                 .shuffleQuestions(exam.getShuffleQuestions())
                 .shuffleAnswers(exam.getShuffleAnswers())
+                .groupIds(groupIds)
                 .build();
     }
 
@@ -497,6 +554,7 @@ public class ExamService {
                 .subjectId(examQuestion.getQuestion().getSubject().getId())
                 .topicId(examQuestion.getQuestion().getTopic() == null ? null : examQuestion.getQuestion().getTopic().getId())
                 .content(examQuestion.getQuestion().getContent())
+                .imageUrl(examQuestion.getQuestion().getImageUrl())
                 .type(examQuestion.getQuestion().getType() == null ? null : examQuestion.getQuestion().getType().name())
                 .difficulty(examQuestion.getQuestion().getDifficulty() == null ? null : examQuestion.getQuestion().getDifficulty().name())
                 .answers(examQuestion.getQuestion().getAnswers().stream()

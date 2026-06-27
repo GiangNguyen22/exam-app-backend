@@ -52,4 +52,10 @@ public class Exam extends BaseEntity {
     @OneToMany(mappedBy = "exam", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<ExamQuestion> examQuestions = new HashSet<>();
 
+    @ManyToMany
+    @JoinTable(name = "exam_groups",
+               joinColumns = @JoinColumn(name = "exam_id"),
+               inverseJoinColumns = @JoinColumn(name = "group_id"))
+    private Set<StudentGroup> groups = new HashSet<>();
+
 }

@@ -74,6 +74,7 @@ public class QuestionService {
         question.setContent(request.getContent());
         question.setType(request.getType());
         question.setDifficulty(request.getDifficulty());
+        question.setImageUrl(request.getImageUrl());
         question.setCreatedBy(currentUser);
         applyAnswers(question, request);
 
@@ -104,6 +105,7 @@ public class QuestionService {
         question.setContent(request.getContent());
         question.setType(request.getType());
         question.setDifficulty(request.getDifficulty());
+        question.setImageUrl(request.getImageUrl());
         applyAnswers(question, request);
 
         Question saved = questionRepository.save(question);
@@ -190,6 +192,7 @@ public class QuestionService {
                 .topicId(question.getTopic() == null ? null : question.getTopic().getId())
                 .topicName(question.getTopic() == null ? null : question.getTopic().getName())
                 .content(question.getContent())
+                .imageUrl(question.getImageUrl())
                 .type(question.getType() == null ? null : question.getType().name())
                 .difficulty(question.getDifficulty() == null ? null : question.getDifficulty().name())
                 .answers(question.getAnswers().stream()

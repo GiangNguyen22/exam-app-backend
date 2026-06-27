@@ -5,6 +5,7 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
@@ -26,4 +27,5 @@ public class ExamCreateRequest {
     private LocalDateTime endTime;
     private Boolean shuffleQuestions = true;
     private Boolean shuffleAnswers = true;
+    private List<Long> groupIds;
 }

@@ -16,6 +16,7 @@ public class ExamQuestionResponse {
     private Long subjectId;
     private Long topicId;
     private String content;
+    private String imageUrl;
     private String type;
     private String difficulty;
     private List<AnswerOptionResponse> answers;

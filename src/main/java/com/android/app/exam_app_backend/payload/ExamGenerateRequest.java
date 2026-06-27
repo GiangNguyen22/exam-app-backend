@@ -4,6 +4,8 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
@@ -33,4 +35,10 @@ public class ExamGenerateRequest {
 
     @Min(0)
     private Integer hardCount = 0;
+
+    private LocalDateTime startTime;
+
+    private LocalDateTime endTime;
+
+    private List<Long> groupIds;
 }

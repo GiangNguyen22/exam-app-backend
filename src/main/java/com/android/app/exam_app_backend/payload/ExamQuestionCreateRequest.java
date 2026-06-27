@@ -34,6 +34,8 @@ public class ExamQuestionCreateRequest {
 
     private BigDecimal score;
 
+    private String imageUrl;
+
     @Valid
     @NotEmpty
     private List<AnswerRequest> answers;

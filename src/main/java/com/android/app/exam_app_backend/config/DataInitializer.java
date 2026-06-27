@@ -51,7 +51,7 @@ public class DataInitializer {
             permissionDescriptions.put(PermissionConstants.AUDIT_VIEW, "Xem nhật ký audit và lịch sử kiểm tra quyền");
             permissionDescriptions.put(PermissionConstants.RBAC_MANAGE, "Quản lý phân quyền: xem role, xem permission và gán permission cho role");
             permissionDescriptions.put(PermissionConstants.EXAM_CREATE, "Tạo hoặc cập nhật đề thi");
-            permissionDescriptions.put(PermissionConstants.EXAM_DELETE, "Xem đề thi");
+            permissionDescriptions.put(PermissionConstants.EXAM_DELETE, "Xóa đề thi");
             permissionDescriptions.put(PermissionConstants.EXAM_GENERATE, "Tự động sinh đề thi từ ngân hàng câu hỏi");
             permissionDescriptions.put(PermissionConstants.EXAM_SUBMIT, "Nộp bài thi của học sinh");
             permissionDescriptions.put(PermissionConstants.EXAM_VIEW_RESULTS, "Xem báo cáo và kết quả thi của tất cả học sinh");

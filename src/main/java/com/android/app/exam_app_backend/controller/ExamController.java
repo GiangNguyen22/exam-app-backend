@@ -9,6 +9,7 @@ import com.android.app.exam_app_backend.payload.ExamResponse;
 import com.android.app.exam_app_backend.payload.ExamSubmitRequest;
 import com.android.app.exam_app_backend.payload.ExamUpdateRequest;
 import com.android.app.exam_app_backend.service.ExamService;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -99,13 +100,22 @@ public class ExamController {
     @DeleteMapping("/{examId}")
     public ResponseEntity<ApiResponse<String>> deleteExam(@PathVariable Long examId,
                                                           Authentication authentication) {
-        examService.deleteExam(examId, authentication);
-        return ResponseEntity.ok(ApiResponse.<String>builder()
-                .success(true)
-                .code(HttpStatus.OK.value())
-                .message("Exam deleted")
-                .data("Exam deleted: " + examId)
-                .build());
+        try {
+            examService.deleteExam(examId, authentication);
+            return ResponseEntity.ok(ApiResponse.<String>builder()
+                    .success(true)
+                    .code(HttpStatus.OK.value())
+                    .message("Exam deleted")
+                    .data("Exam deleted: " + examId)
+                    .build());
+        } catch (DataIntegrityViolationException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.<String>builder()
+                            .success(false)
+                            .code(HttpStatus.CONFLICT.value())
+                            .message("Không thể xóa đề thi vì đã có thí sinh tham gia.")
+                            .build());
+        }
     }
 
     @PostMapping("/generate")

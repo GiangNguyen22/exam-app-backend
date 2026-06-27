@@ -14,6 +14,7 @@ public class QuestionResponse {
     private Long topicId;
     private String topicName;
     private String content;
+    private String imageUrl;
     private String type;
     private String difficulty;
     private List<AnswerOptionResponse> answers;

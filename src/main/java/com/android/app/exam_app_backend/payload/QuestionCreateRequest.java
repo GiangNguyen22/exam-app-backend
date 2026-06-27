@@ -29,6 +29,8 @@ public class QuestionCreateRequest {
     @NotNull
     private Difficulty difficulty;
 
+    private String imageUrl;
+
     @Valid
     @NotEmpty
     private List<AnswerRequest> answers;
