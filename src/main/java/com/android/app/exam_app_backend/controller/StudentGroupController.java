@@ -74,12 +74,14 @@ public class StudentGroupController {
     }
 
     @PostMapping("/{id}/members")
-    public ResponseEntity<ApiResponse<StudentGroupMemberResponse>> addMember(@PathVariable Long id,
-                                                                             @RequestBody MemberRequest request) {
-        StudentGroupMember member = groupService.addMember(id, request.getUserId());
-        return ResponseEntity.ok(ApiResponse.<StudentGroupMemberResponse>builder()
-                .success(true).code(HttpStatus.CREATED.value()).message("Member added")
-                .data(toMemberResponse(member)).build());
+    public ResponseEntity<ApiResponse<List<StudentGroupMemberResponse>>> addMember(@PathVariable Long id,
+                                                                                   @RequestBody MemberRequest request) {
+        List<StudentGroupMemberResponse> members = groupService.addMembers(id, request.getUserIds()).stream()
+                .map(this::toMemberResponse)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(ApiResponse.<List<StudentGroupMemberResponse>>builder()
+                .success(true).code(HttpStatus.CREATED.value()).message("Members added")
+                .data(members).build());
     }
 
     @DeleteMapping("/{id}/members/{userId}")
@@ -109,8 +111,8 @@ public class StudentGroupController {
     }
 
     static class MemberRequest {
-        private Long userId;
-        public Long getUserId() { return userId; }
-        public void setUserId(Long userId) { this.userId = userId; }
+        private List<Long> userIds;
+        public List<Long> getUserIds() { return userIds; }
+        public void setUserIds(List<Long> userIds) { this.userIds = userIds; }
     }
 }
