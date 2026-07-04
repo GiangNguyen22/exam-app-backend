@@ -20,4 +20,5 @@ public class ExamResponse {
     private Boolean shuffleQuestions;
     private Boolean shuffleAnswers;
     private List<Long> groupIds;
+    private Integer totalQuestions;
 }

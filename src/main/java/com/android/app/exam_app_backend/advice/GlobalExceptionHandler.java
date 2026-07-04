@@ -4,6 +4,7 @@ import com.android.app.exam_app_backend.common.dto.ApiResponse;
 import com.android.app.exam_app_backend.exception.ResourceNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -11,6 +12,21 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(LockedException.class)
+    public ResponseEntity<ApiResponse<Object>> handleLockedException(
+            LockedException ex
+    ) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(
+                        ApiResponse.builder()
+                                .success(false)
+                                .code(HttpStatus.UNAUTHORIZED.value())
+                                .message("Tài khoản của bạn đã bị khóa")
+                                .data(null)
+                                .build()
+                );
+    }
 
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ApiResponse<Object>> handleAuthenticationException(

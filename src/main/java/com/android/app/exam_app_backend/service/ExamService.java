@@ -538,6 +538,7 @@ public class ExamService {
                 .shuffleQuestions(exam.getShuffleQuestions())
                 .shuffleAnswers(exam.getShuffleAnswers())
                 .groupIds(groupIds)
+                .totalQuestions(exam.getExamQuestions().size())
                 .build();
     }
 

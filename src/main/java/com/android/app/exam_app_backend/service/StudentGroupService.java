@@ -85,6 +85,22 @@ public class StudentGroupService {
     }
 
     @Transactional
+    public List<StudentGroupMember> addMembers(Long groupId, List<Long> userIds) {
+        StudentGroup group = getGroup(groupId);
+        return userIds.stream()
+                .filter(userId -> memberRepository.findByGroupIdAndUserId(groupId, userId).isEmpty())
+                .map(userId -> {
+                    User user = userRepository.findById(userId)
+                            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found: " + userId));
+                    StudentGroupMember member = new StudentGroupMember();
+                    member.setGroup(group);
+                    member.setUser(user);
+                    return memberRepository.save(member);
+                })
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
     public void removeMember(Long groupId, Long userId) {
         StudentGroupMember member = memberRepository.findByGroupIdAndUserId(groupId, userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Member not found."));
