@@ -18,7 +18,7 @@ services:
       retries: 5
 
   backend:
-    build: .
+    image: dean221/exam-backend:1.0
     container_name: exam-backend
     restart: unless-stopped
     ports:
