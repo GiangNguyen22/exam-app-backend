@@ -2,13 +2,20 @@ spring:
   application:
     name: exam-app-backend
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/school_exam_db}
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/school_exam_db?connectionTimeZone=Asia%2FHo_Chi_Minh}
     username: ${SPRING_DATASOURCE_USERNAME:root}
     password: ${SPRING_DATASOURCE_PASSWORD:giang1234@}
+
+  jackson:
+    time-zone: Asia/Ho_Chi_Minh
 
   jpa:
     hibernate:
       ddl-auto: update
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: Asia/Ho_Chi_Minh
 
   servlet:
     multipart:
