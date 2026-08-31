@@ -42,6 +42,9 @@ public class Exam extends BaseEntity {
     @Column(name = "shuffle_answers")
     private Boolean shuffleAnswers = true;
 
+    @Column(name = "show_answers_after_submit")
+    private Boolean showAnswersAfterSubmit = false;
+
     @Column(name = "score_per_question", precision = 5, scale = 2)
     private BigDecimal scorePerQuestion;
 

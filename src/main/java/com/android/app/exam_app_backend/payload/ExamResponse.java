@@ -19,6 +19,7 @@ public class ExamResponse {
     private LocalDateTime endTime;
     private Boolean shuffleQuestions;
     private Boolean shuffleAnswers;
+    private Boolean showAnswersAfterSubmit;
     private List<Long> groupIds;
     private Integer totalQuestions;
 }

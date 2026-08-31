@@ -262,6 +262,7 @@ public class ExamService {
         exam.setEndTime(request.getEndTime());
         exam.setShuffleQuestions(request.getShuffleQuestions());
         exam.setShuffleAnswers(request.getShuffleAnswers());
+        exam.setShowAnswersAfterSubmit(Boolean.TRUE.equals(request.getShowAnswersAfterSubmit()));
         exam.setCreatedBy(creator);
 
         if (request.getGroupIds() != null && !request.getGroupIds().isEmpty()) {
@@ -289,6 +290,7 @@ public class ExamService {
         exam.setEndTime(request.getEndTime());
         exam.setShuffleQuestions(request.getShuffleQuestions());
         exam.setShuffleAnswers(request.getShuffleAnswers());
+        exam.setShowAnswersAfterSubmit(Boolean.TRUE.equals(request.getShowAnswersAfterSubmit()));
 
         if (request.getGroupIds() != null) {
             Set<StudentGroup> groups = request.getGroupIds().isEmpty() ? new HashSet<>() :
@@ -344,6 +346,7 @@ public class ExamService {
         exam.setScorePerQuestion(request.getScorePerQuestion());
         exam.setShuffleQuestions(true);
         exam.setShuffleAnswers(true);
+        exam.setShowAnswersAfterSubmit(false);
         exam.setStartTime(request.getStartTime() != null ? request.getStartTime() : LocalDateTime.now());
         exam.setEndTime(request.getEndTime() != null ? request.getEndTime() : LocalDateTime.now().plusMinutes(request.getDurationMinutes()));
         exam.setCreatedBy(creator);
@@ -537,6 +540,7 @@ public class ExamService {
                 .endTime(exam.getEndTime())
                 .shuffleQuestions(exam.getShuffleQuestions())
                 .shuffleAnswers(exam.getShuffleAnswers())
+                .showAnswersAfterSubmit(exam.getShowAnswersAfterSubmit())
                 .groupIds(groupIds)
                 .totalQuestions(exam.getExamQuestions().size())
                 .build();

@@ -77,6 +77,27 @@ public class ResultService {
 
         ExamResult result = resolveResultForViewer(examId, authentication);
 
+        // Học sinh chỉ được xem đáp án (và nội dung từng câu đúng/sai) khi giáo viên bật
+        // showAnswersAfterSubmit. Giáo viên/quản trị luôn xem được đầy đủ.
+        boolean showAnswers = !isStudent(authentication)
+                || Boolean.TRUE.equals(exam.getShowAnswersAfterSubmit());
+
+        if (!showAnswers) {
+            return ExamResultDetailResponse.builder()
+                    .resultId(result.getId())
+                    .examId(exam.getId())
+                    .examTitle(exam.getTitle())
+                    .score(result.getScore())
+                    .status(result.getStatus())
+                    .submittedAt(result.getSubmittedAt())
+                    .totalQuestions(examQuestionRepository.findByExamIdOrderByOrderIndexAsc(examId).size())
+                    .correctCount(null)
+                    .wrongCount(null)
+                    .blankCount(null)
+                    .questions(null)
+                    .build();
+        }
+
         List<ExamQuestion> examQuestions = examQuestionRepository.findByExamIdOrderByOrderIndexAsc(examId);
         Map<Long, StudentResponse> responsesByQuestionId = studentResponseRepository.findByResultId(result.getId()).stream()
                 .filter(response -> response.getQuestion() != null)

@@ -27,5 +27,6 @@ public class ExamUpdateRequest {
     private LocalDateTime endTime;
     private Boolean shuffleQuestions = true;
     private Boolean shuffleAnswers = true;
+    private Boolean showAnswersAfterSubmit = false;
     private List<Long> groupIds;
 }

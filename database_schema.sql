@@ -131,6 +131,7 @@ CREATE TABLE exams (
     end_time DATETIME,
     shuffle_questions BOOLEAN DEFAULT TRUE,
     shuffle_answers BOOLEAN DEFAULT TRUE,
+    show_answers_after_submit BOOLEAN DEFAULT FALSE,
     score_per_question DECIMAL(5, 2) DEFAULT 1.0,
     created_by BIGINT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
