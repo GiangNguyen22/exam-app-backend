@@ -98,6 +98,14 @@
 			<artifactId>poi-ooxml</artifactId>
 			<version>5.2.5</version>
 		</dependency>
+
+		<!-- Google Gen AI Java SDK (Gemini) -->
+		<!-- Pin below 2.0.0: 2.0.0 requires Java 17, this project uses Java 11 -->
+		<dependency>
+			<groupId>com.google.genai</groupId>
+			<artifactId>google-genai</artifactId>
+			<version>1.67.0</version>
+		</dependency>
 	</dependencies>
 
 	<build>

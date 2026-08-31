@@ -4,7 +4,7 @@ spring:
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/school_exam_db}
     username: ${SPRING_DATASOURCE_USERNAME:root}
-    password: ${SPRING_DATASOURCE_PASSWORD:}
+    password: ${SPRING_DATASOURCE_PASSWORD:giang1234@}
 
   jpa:
     hibernate:
@@ -25,3 +25,7 @@ jwt:
 app:
   upload:
     dir: ${APP_UPLOAD_DIR:uploads}
+  ai:
+    gemini:
+      api-key: ${GEMINI_API_KEY:}
+      model: ${GEMINI_MODEL:gemini-3.5-flash-lite}
