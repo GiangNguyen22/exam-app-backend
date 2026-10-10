@@ -38,6 +38,16 @@ public class ExamController {
                 .build());
     }
 
+    @GetMapping("/scheduled")
+    public ResponseEntity<ApiResponse<List<ExamResponse>>> getScheduledExams(Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.<List<ExamResponse>>builder()
+                .success(true)
+                .code(HttpStatus.OK.value())
+                .message("Scheduled exams retrieved")
+                .data(examService.getScheduledExams(authentication))
+                .build());
+    }
+
     @GetMapping("/{examId}/questions")
     public ResponseEntity<ApiResponse<List<ExamQuestionResponse>>> getExamQuestions(@PathVariable Long examId,
                                                                                    Authentication authentication) {

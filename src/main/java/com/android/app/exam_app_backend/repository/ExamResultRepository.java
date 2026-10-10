@@ -9,5 +9,8 @@ import java.util.Optional;
 public interface ExamResultRepository extends JpaRepository<ExamResult, Long> {
     Optional<ExamResult> findTopByExamIdOrderByIdDesc(Long examId);
     Optional<ExamResult> findByStudentIdAndExamId(Long studentId, Long examId);
+    List<ExamResult> findByStudentIdAndExamIdOrderByAttemptNumberAsc(Long studentId, Long examId);
+    Optional<ExamResult> findFirstByStudentIdAndExamIdOrderByAttemptNumberDesc(Long studentId, Long examId);
+    List<ExamResult> findByStudentIdOrderBySubmittedAtDesc(Long studentId);
     List<ExamResult> findByExamIdOrderByIdDesc(Long examId);
 }

@@ -40,5 +40,8 @@ public class ExamGenerateRequest {
 
     private LocalDateTime endTime;
 
+    @Min(1)
+    private Integer maxAttempts = 1;
+
     private List<Long> groupIds;
 }

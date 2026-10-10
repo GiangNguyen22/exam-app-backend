@@ -25,6 +25,10 @@ public class ExamUpdateRequest {
 
     private LocalDateTime startTime;
     private LocalDateTime endTime;
+
+    @Min(1)
+    private Integer maxAttempts = 1;
+
     private Boolean shuffleQuestions = true;
     private Boolean shuffleAnswers = true;
     private Boolean showAnswersAfterSubmit = false;

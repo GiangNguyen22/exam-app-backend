@@ -40,4 +40,7 @@ public class ExamResult {
     @Column(name = "submitted_at")
     private LocalDateTime submittedAt;
 
+    @Column(name = "attempt_number", nullable = false)
+    private Integer attemptNumber = 1;
+
 }

@@ -35,6 +35,7 @@ import com.android.app.exam_app_backend.repository.StudentGroupRepository;
 import com.android.app.exam_app_backend.security.PermissionConstants;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,6 +43,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -110,21 +112,57 @@ public class ExamService {
 
         List<Long> finalUserGroupIds = userGroupIds;
         return examRepository.findAll().stream()
-                .filter(exam -> !studentView || isExamVisibleToStudent(exam, now, finalUserGroupIds))
-                .map(this::toResponse)
+                .filter(exam -> !studentView || isExamVisibleToStudent(exam, now, finalUserGroupIds, authentication == null ? null : authentication.getName()))
+                .map(exam -> toResponse(exam, authentication))
                 .collect(Collectors.toList());
     }
 
-    private boolean isExamVisibleToStudent(Exam exam, LocalDateTime now, List<Long> userGroupIds) {
+    @Transactional(readOnly = true)
+    public List<ExamResponse> getScheduledExams(Authentication authentication) {
+        boolean studentView = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_STUDENT".equals(authority.getAuthority()));
+        LocalDateTime now = LocalDateTime.now();
+
+        List<Long> userGroupIds = null;
+        if (studentView) {
+            userGroupIds = userRepository.findByUsername(authentication.getName())
+                    .map(user -> studentGroupMemberRepository.findByUserId(user.getId()).stream()
+                            .map(m -> m.getGroup().getId())
+                            .collect(Collectors.toList()))
+                    .orElse(null);
+        }
+
+        List<Long> finalUserGroupIds = userGroupIds;
+        return examRepository.findAll().stream()
+                .filter(exam -> exam.getStartTime() != null || exam.getEndTime() != null)
+                .filter(exam -> !studentView || isExamVisibleToStudent(exam, now, finalUserGroupIds, authentication == null ? null : authentication.getName()))
+                .sorted((left, right) -> {
+                    LocalDateTime leftTime = left.getStartTime() != null ? left.getStartTime() : LocalDateTime.MAX;
+                    LocalDateTime rightTime = right.getStartTime() != null ? right.getStartTime() : LocalDateTime.MAX;
+                    return leftTime.compareTo(rightTime);
+                })
+                .map(exam -> toResponse(exam, authentication))
+                .collect(Collectors.toList());
+    }
+
+    private boolean isExamVisibleToStudent(Exam exam, LocalDateTime now, List<Long> userGroupIds, String username) {
         if (exam.getStartTime() != null && now.isBefore(exam.getStartTime())) {
             return false;
         }
-        if (exam.getEndTime() != null && !now.isBefore(exam.getEndTime())) {
+        if (exam.getEndTime() != null && now.isAfter(exam.getEndTime())) {
             return false;
         }
         if (exam.getGroups() != null && !exam.getGroups().isEmpty()) {
             if (userGroupIds == null || userGroupIds.isEmpty()) return false;
-            return exam.getGroups().stream().anyMatch(g -> userGroupIds.contains(g.getId()));
+            if (!exam.getGroups().stream().anyMatch(g -> userGroupIds.contains(g.getId()))) {
+                return false;
+            }
+        }
+        if (username != null && userRepository.findByUsername(username).isPresent()) {
+            User student = userRepository.findByUsername(username).get();
+            if (!isAttemptAvailableForStudent(exam, student)) {
+                return false;
+            }
         }
         return true;
     }
@@ -141,12 +179,74 @@ public class ExamService {
                 .anyMatch(authority -> "ROLE_STUDENT".equals(authority.getAuthority()));
     }
 
+    private boolean isAttemptAvailableForStudent(Exam exam, User student) {
+        int maxAttempts = Math.max(1, exam.getMaxAttempts() == null ? 1 : exam.getMaxAttempts());
+        List<ExamResult> attempts = examResultRepository.findByStudentIdAndExamIdOrderByAttemptNumberAsc(student.getId(), exam.getId());
+
+        if (attempts.isEmpty()) {
+            return true;
+        }
+
+        boolean hasActiveAttempt = attempts.stream().anyMatch(result -> result.getStatus() == ExamResultStatus.DOING);
+        long submittedAttempts = attempts.stream().filter(result -> result.getStatus() == ExamResultStatus.SUBMITTED).count();
+        return hasActiveAttempt || submittedAttempts < maxAttempts;
+    }
+
+    private ExamResult resolveOrCreateAttempt(Exam exam, User student, LocalDateTime now) {
+        List<ExamResult> attempts = examResultRepository.findByStudentIdAndExamIdOrderByAttemptNumberAsc(student.getId(), exam.getId());
+
+        for (ExamResult attempt : attempts) {
+            if (attempt.getStatus() == ExamResultStatus.DOING) {
+                if (exam.getEndTime() != null && now.isAfter(exam.getEndTime())) {
+                    return finalizeAttempt(attempt, "Auto-submitted because the exam window ended");
+                }
+                return attempt;
+            }
+        }
+
+        int maxAttempts = Math.max(1, exam.getMaxAttempts() == null ? 1 : exam.getMaxAttempts());
+        if (attempts.size() >= maxAttempts) {
+            throw new IllegalStateException("Max attempts reached for this exam.");
+        }
+
+        ExamResult newAttempt = new ExamResult();
+        newAttempt.setExam(exam);
+        newAttempt.setStudent(student);
+        newAttempt.setStatus(ExamResultStatus.DOING);
+        newAttempt.setStartedAt(now);
+        newAttempt.setAttemptNumber(attempts.size() + 1);
+        return examResultRepository.save(newAttempt);
+    }
+
+    @Scheduled(fixedDelay = 30000)
+    @Transactional
+    public void autoSubmitExpiredExams() {
+        LocalDateTime now = LocalDateTime.now();
+        examResultRepository.findAll().stream()
+                .filter(result -> result.getExam() != null)
+                .filter(result -> result.getStatus() == ExamResultStatus.DOING)
+                .filter(result -> result.getExam().getEndTime() != null && !now.isBefore(result.getExam().getEndTime()))
+                .forEach(result -> finalizeAttempt(result, "Auto-submitted because the exam window ended"));
+    }
+
+    private ExamResult finalizeAttempt(ExamResult result, String reason) {
+        result.setStatus(ExamResultStatus.SUBMITTED);
+        result.setSubmittedAt(LocalDateTime.now());
+        if (result.getScore() == null) {
+            result.setScore(BigDecimal.ZERO);
+        }
+        if (reason != null && !reason.isBlank()) {
+            auditLogService.log(result.getStudent(), PermissionConstants.EXAM_SUBMIT, "exam", result.getExam().getId(), AuditResult.allow, reason);
+        }
+        return examResultRepository.save(result);
+    }
+
     @Transactional(readOnly = true)
     public List<ExamQuestionResponse> getExamQuestions(Long examId, Authentication authentication) {
         Exam exam = examRepository.findById(examId)
                 .orElseThrow(() -> new ResourceNotFoundException("Exam not found: " + examId));
         if (isStudent(authentication) && !isExamVisibleToStudent(exam, LocalDateTime.now(),
-                getUserGroupIds(authentication.getName()))) {
+                getUserGroupIds(authentication.getName()), authentication.getName())) {
             throw new IllegalArgumentException("Exam is no longer available");
         }
 
@@ -349,6 +449,7 @@ public class ExamService {
         exam.setShowAnswersAfterSubmit(false);
         exam.setStartTime(request.getStartTime() != null ? request.getStartTime() : LocalDateTime.now());
         exam.setEndTime(request.getEndTime() != null ? request.getEndTime() : LocalDateTime.now().plusMinutes(request.getDurationMinutes()));
+        exam.setMaxAttempts(request.getMaxAttempts() == null ? 1 : request.getMaxAttempts());
         exam.setCreatedBy(creator);
 
         if (request.getGroupIds() != null && !request.getGroupIds().isEmpty()) {
@@ -395,26 +496,27 @@ public class ExamService {
     public String submitExam(Long examId, ExamSubmitRequest request, Authentication authentication) {
         Exam exam = examRepository.findById(examId)
                 .orElseThrow(() -> new ResourceNotFoundException("Exam not found: " + examId));
-        if (isStudent(authentication) && !isExamVisibleToStudent(exam, LocalDateTime.now(),
-                getUserGroupIds(authentication.getName()))) {
-            throw new IllegalArgumentException("Exam is no longer available");
-        }
+        LocalDateTime now = LocalDateTime.now();
         User student = userRepository.findByUsername(authentication.getName())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + authentication.getName()));
 
-        ExamResult result = examResultRepository.findByStudentIdAndExamId(student.getId(), examId)
-                .orElseGet(() -> {
-                    ExamResult created = new ExamResult();
-                    created.setExam(exam);
-                    created.setStudent(student);
-                    created.setStartedAt(LocalDateTime.now());
-                    return created;
-                });
+        if (isStudent(authentication) && !isAttemptAvailableForStudent(exam, student)) {
+            throw new IllegalStateException("Max attempts reached for this exam.");
+        }
+        if (isStudent(authentication) && !isExamVisibleToStudent(exam, now,
+                getUserGroupIds(authentication.getName()), authentication.getName())) {
+            throw new IllegalArgumentException("Exam is no longer available");
+        }
 
-        result.setStatus(ExamResultStatus.SUBMITTED);
-        result.setSubmittedAt(LocalDateTime.now());
-        result = examResultRepository.save(result);
+        ExamResult result = resolveOrCreateAttempt(exam, student, now);
+
+        if (result.getStatus() == ExamResultStatus.SUBMITTED) {
+            throw new IllegalStateException("Max attempts reached for this exam.");
+        }
+
         saveStudentResponses(result, request);
+        result.setStatus(ExamResultStatus.SUBMITTED);
+        result.setSubmittedAt(now);
         result.setScore(calculateScore(examId, request));
         examResultRepository.save(result);
         auditLogService.log(student, PermissionConstants.EXAM_SUBMIT, "exam", exam.getId(), AuditResult.allow, "Exam submitted");
@@ -528,8 +630,21 @@ public class ExamService {
     }
 
     private ExamResponse toResponse(Exam exam) {
+        return toResponse(exam, null);
+    }
+
+    private ExamResponse toResponse(Exam exam, Authentication authentication) {
         List<Long> groupIds = exam.getGroups() == null ? null :
                 exam.getGroups().stream().map(StudentGroup::getId).collect(Collectors.toList());
+
+        String status = null;
+        if (authentication != null && isStudent(authentication)) {
+            User student = userRepository.findByUsername(authentication.getName()).orElse(null);
+            if (student != null) {
+                status = resolveStudentExamStatus(exam, student);
+            }
+        }
+
         return ExamResponse.builder()
                 .id(exam.getId())
                 .code(exam.getCode())
@@ -538,12 +653,31 @@ public class ExamService {
                 .scorePerQuestion(exam.getScorePerQuestion())
                 .startTime(exam.getStartTime())
                 .endTime(exam.getEndTime())
+                .maxAttempts(exam.getMaxAttempts() == null ? 1 : exam.getMaxAttempts())
                 .shuffleQuestions(exam.getShuffleQuestions())
                 .shuffleAnswers(exam.getShuffleAnswers())
                 .showAnswersAfterSubmit(exam.getShowAnswersAfterSubmit())
+                .status(status)
                 .groupIds(groupIds)
                 .totalQuestions(exam.getExamQuestions().size())
                 .build();
+    }
+
+    private String resolveStudentExamStatus(Exam exam, User student) {
+        List<ExamResult> attempts = examResultRepository.findByStudentIdAndExamIdOrderByAttemptNumberAsc(student.getId(), exam.getId());
+        if (attempts.isEmpty()) {
+            return exam.getEndTime() != null && LocalDateTime.now().isAfter(exam.getEndTime()) ? "EXPIRED" : "NOT_STARTED";
+        }
+        if (attempts.stream().anyMatch(result -> result.getStatus() == ExamResultStatus.DOING)) {
+            return "IN_PROGRESS";
+        }
+        if (attempts.stream().anyMatch(result -> result.getStatus() == ExamResultStatus.SUBMITTED)) {
+            return "SUBMITTED";
+        }
+        if (attempts.stream().anyMatch(result -> result.getStatus() == ExamResultStatus.CANCELLED)) {
+            return "CANCELLED";
+        }
+        return "NOT_STARTED";
     }
 
     private ExamQuestionResponse toQuestionResponse(ExamQuestion examQuestion) {

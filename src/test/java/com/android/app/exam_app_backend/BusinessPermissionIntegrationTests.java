@@ -75,6 +75,37 @@ class BusinessPermissionIntegrationTests {
     }
 
     @Test
+    void studentCanCheckStatusOfAssignedExam() throws Exception {
+        String teacherToken = loginAndExtractToken("teacher1", "teacher123");
+        String studentToken = loginAndExtractToken("student1", "student123");
+        Long examId = createExamAndGetId(teacherToken);
+
+        MvcResult result = mockMvc.perform(get("/api/exams")
+                        .header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String response = result.getResponse().getContentAsString();
+        assert response.contains("\"id\":" + examId);
+        assert response.contains("\"status\":\"NOT_STARTED\"") : response;
+    }
+
+    @Test
+    void teacherCanListScheduledExams() throws Exception {
+        String teacherToken = loginAndExtractToken("teacher1", "teacher123");
+        Long examId = createScheduledExamAndGetId(teacherToken);
+
+        MvcResult result = mockMvc.perform(get("/api/exams/scheduled")
+                        .header("Authorization", "Bearer " + teacherToken))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String response = result.getResponse().getContentAsString();
+        assert response.contains("\"id\":" + examId);
+        assert response.contains("\"title\":\"Midterm\"") : response;
+    }
+
+    @Test
     void studentCannotGenerateExam() throws Exception {
         String studentToken = loginAndExtractToken("student1", "student123");
 
@@ -83,6 +114,25 @@ class BusinessPermissionIntegrationTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"title\":\"Auto\", \"durationMinutes\":30, \"scorePerQuestion\":1}"))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void studentCannotSubmitSameExamTwiceWhenMaxAttemptsIsOne() throws Exception {
+        String teacherToken = loginAndExtractToken("teacher1", "teacher123");
+        String studentToken = loginAndExtractToken("student1", "student123");
+        Long examId = createExamAndGetId(teacherToken);
+
+        mockMvc.perform(post("/api/exams/" + examId + "/submit")
+                        .header("Authorization", "Bearer " + studentToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"note\":\"first attempt\"}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/exams/" + examId + "/submit")
+                        .header("Authorization", "Bearer " + studentToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"note\":\"second attempt\"}"))
+                .andExpect(status().isConflict());
     }
 
     @Test
@@ -121,6 +171,29 @@ class BusinessPermissionIntegrationTests {
     }
 
     @Test
+    void studentCanViewOwnResultsByStudentId() throws Exception {
+        String adminToken = loginAndExtractToken("admin", "admin123");
+        String studentToken = loginAndExtractToken("student1", "student123");
+        Long examId = createExamAndGetId(adminToken);
+
+        mockMvc.perform(post("/api/exams/" + examId + "/submit")
+                        .header("Authorization", "Bearer " + studentToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"note\":\"done\"}"))
+                .andExpect(status().isOk());
+
+        Long studentId = getCurrentUserId(studentToken);
+        MvcResult result = mockMvc.perform(get("/api/results/students/" + studentId)
+                        .header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String response = result.getResponse().getContentAsString();
+        assert response.contains("\"examId\":" + examId) : response;
+        assert response.contains("\"status\":\"SUBMITTED\"") : response;
+    }
+
+    @Test
     void studentCannotViewExamReport() throws Exception {
         String adminToken = loginAndExtractToken("admin", "admin123");
         String studentToken = loginAndExtractToken("student1", "student123");
@@ -146,6 +219,28 @@ class BusinessPermissionIntegrationTests {
                 .andExpect(status().isForbidden());
     }
 
+    private Long createScheduledExamAndGetId(String teacherToken) throws Exception {
+        String startTime = "2029-01-15T09:00:00";
+        String endTime = "2029-01-15T10:00:00";
+
+        MvcResult examResult = mockMvc.perform(post("/api/exams")
+                        .header("Authorization", "Bearer " + teacherToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"Midterm\",\"durationMinutes\":60,\"scorePerQuestion\":1,\"startTime\":\"" + startTime + "\",\"endTime\":\"" + endTime + "\"}"))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String response = examResult.getResponse().getContentAsString();
+        String marker = "\"id\":";
+        int start = response.indexOf(marker);
+        int from = start + marker.length();
+        int to = response.indexOf(",", from);
+        if (to < 0) {
+            to = response.indexOf("}", from);
+        }
+        return Long.parseLong(response.substring(from, to).trim());
+    }
+
     private Long createExamAndGetId(String teacherToken) throws Exception {
         MvcResult examResult = mockMvc.perform(post("/api/exams")
                         .header("Authorization", "Bearer " + teacherToken)
@@ -155,6 +250,23 @@ class BusinessPermissionIntegrationTests {
                 .andReturn();
 
         String response = examResult.getResponse().getContentAsString();
+        String marker = "\"id\":";
+        int start = response.indexOf(marker);
+        int from = start + marker.length();
+        int to = response.indexOf(",", from);
+        if (to < 0) {
+            to = response.indexOf("}", from);
+        }
+        return Long.parseLong(response.substring(from, to).trim());
+    }
+
+    private Long getCurrentUserId(String token) throws Exception {
+        MvcResult result = mockMvc.perform(get("/api/users/me")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String response = result.getResponse().getContentAsString();
         String marker = "\"id\":";
         int start = response.indexOf(marker);
         int from = start + marker.length();
