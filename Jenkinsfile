@@ -1,4 +1,3 @@
-```groovy
 pipeline {
     agent {
         label 'build-server-01'
@@ -156,4 +155,3 @@ pipeline {
         }
     }
 }
-```
