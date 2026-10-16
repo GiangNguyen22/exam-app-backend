@@ -101,7 +101,7 @@ pipeline {
             }
         }
 
-stage('Deploy to Production') {
+        stage('Deploy to Production') {
             steps {
                 withCredentials([
                     sshUserPrivateKey(
@@ -112,6 +112,9 @@ stage('Deploy to Production') {
                 ]) {
                     sh '''
                         set -eu
+
+                        # Gán giá trị trực tiếp phòng trường hợp biến môi trường global không truyền vào shell block
+                        PROD_DIR="/opt/exam-app-backend"
 
                         echo "=== Connecting to Production ($PROD_USER@$PROD_HOST) to deploy ==="
 
