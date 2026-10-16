@@ -1,7 +1,5 @@
 pipeline {
-    agent {
-        label 'build-server-01'
-    }
+    agent any
 
     options {
         timestamps()
@@ -16,7 +14,6 @@ pipeline {
     }
 
     stages {
-        // Stage 1: Checkout source code
         stage('Checkout') {
             steps {
                 checkout scm
@@ -47,7 +44,6 @@ pipeline {
             }
         }
 
-        // Stage 2: Build and test
         stage('Build and Test') {
             steps {
                 sh '''
@@ -80,7 +76,6 @@ pipeline {
             }
         }
 
-        // Stage 3: Build Docker image
         stage('Build Docker Image') {
             steps {
                 sh '''
@@ -103,7 +98,6 @@ pipeline {
             }
         }
 
-        // Stage 4: Push images to Docker Hub
         stage('Push Docker Image') {
             steps {
                 withCredentials([
@@ -139,6 +133,32 @@ pipeline {
                 }
             }
         }
+
+        stage('Test Production SSH') {
+            steps {
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: 'deploy-production',
+                        keyFileVariable: 'PROD_SSH_KEY',
+                        usernameVariable: 'PROD_SSH_USER'
+                    )
+                ]) {
+                    sh '''
+                        set -eu
+
+                        ssh \
+                            -i "$PROD_SSH_KEY" \
+                            -o IdentitiesOnly=yes \
+                            -o BatchMode=yes \
+                            -o StrictHostKeyChecking=yes \
+                            -o UserKnownHostsFile=/home/jenkins/.ssh/known_hosts \
+                            -o ConnectTimeout=10 \
+                            "$PROD_SSH_USER@180.93.43.211" \
+                            'whoami && hostname'
+                    '''
+                }
+            }
+        }
     }
 
     post {
@@ -154,32 +174,4 @@ pipeline {
             echo 'Pipeline execution finished.'
         }
     }
-
-
-stage('Test Production SSH') {
-    steps {
-        withCredentials([
-            sshUserPrivateKey(
-                credentialsId: 'deploy-production',
-                keyFileVariable: 'PROD_SSH_KEY',
-                usernameVariable: 'PROD_SSH_USER'
-            )
-        ]) {
-            sh '''
-                set -eu
-
-                ssh \
-                    -i "$PROD_SSH_KEY" \
-                    -o IdentitiesOnly=yes \
-                    -o BatchMode=yes \
-                    -o StrictHostKeyChecking=yes \
-                    -o UserKnownHostsFile=/home/jenkins/.ssh/known_hosts \
-                    -o ConnectTimeout=10 \
-                    "$PROD_SSH_USER@180.93.43.211" \
-                    'whoami && hostname'
-            '''
-        }
-    }
-}
-
 }
