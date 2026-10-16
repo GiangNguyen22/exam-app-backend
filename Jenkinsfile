@@ -154,4 +154,32 @@ pipeline {
             echo 'Pipeline execution finished.'
         }
     }
+
+
+stage('Test Production SSH') {
+    steps {
+        withCredentials([
+            sshUserPrivateKey(
+                credentialsId: 'deploy-server',
+                keyFileVariable: 'PROD_SSH_KEY',
+                usernameVariable: 'PROD_SSH_USER'
+            )
+        ]) {
+            sh '''
+                set -eu
+
+                ssh \
+                    -i "$PROD_SSH_KEY" \
+                    -o IdentitiesOnly=yes \
+                    -o BatchMode=yes \
+                    -o StrictHostKeyChecking=yes \
+                    -o UserKnownHostsFile=/home/jenkins/.ssh/known_hosts \
+                    -o ConnectTimeout=10 \
+                    "$PROD_SSH_USER@180.93.43.211" \
+                    'whoami && hostname'
+            '''
+        }
+    }
+}
+
 }
