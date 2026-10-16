@@ -1,3 +1,4 @@
+
 pipeline {
     agent { label 'build-server-01' }
 
@@ -11,6 +12,9 @@ pipeline {
     environment {
         DOCKERHUB_REPO = 'doanpv10/exam-app-backend'
         APP_JAR = 'target/exam-app-backend-0.0.1-SNAPSHOT.jar'
+        PROD_HOST = '180.93.43.211'
+        PROD_DIR = '/opt/exam-app-backend'
+        SSH_KNOWN_HOSTS = '/home/jenkins/.ssh/known_hosts'
     }
 
     stages {
@@ -92,8 +96,8 @@ pipeline {
                         .
 
                     echo "=== Verify Docker images ==="
-                    docker image inspect "$DOCKERHUB_REPO:test"
-                    docker image inspect "$DOCKERHUB_REPO:git-$IMAGE_TAG"
+                    docker image inspect "$DOCKERHUB_REPO:test" >/dev/null
+                    docker image inspect "$DOCKERHUB_REPO:git-$IMAGE_TAG" >/dev/null
                 '''
             }
         }
@@ -113,22 +117,15 @@ pipeline {
 
                         trap 'docker logout >/dev/null 2>&1 || true' EXIT
 
-                        echo "=== Login to Docker Hub ==="
-                        printf '%s' "$DOCKERHUB_TOKEN" |
+                        echo "$DOCKERHUB_TOKEN" |
                             docker login \
                                 --username "$DOCKERHUB_USER" \
                                 --password-stdin
 
-                        echo "=== Push versioned image ==="
                         docker push "$DOCKERHUB_REPO:git-$IMAGE_TAG"
-
-                        echo "=== Push test image ==="
                         docker push "$DOCKERHUB_REPO:test"
 
-                        echo "=== Push completed ==="
-                        echo "Repository: $DOCKERHUB_REPO"
-                        echo "Commit tag: git-$IMAGE_TAG"
-                        echo "Test tag: test"
+                        echo "Pushed image: $DOCKERHUB_REPO:git-$IMAGE_TAG"
                     '''
                 }
             }
@@ -151,10 +148,78 @@ pipeline {
                             -o IdentitiesOnly=yes \
                             -o BatchMode=yes \
                             -o StrictHostKeyChecking=yes \
-                            -o UserKnownHostsFile=/home/jenkins/.ssh/known_hosts \
+                            -o UserKnownHostsFile="$SSH_KNOWN_HOSTS" \
                             -o ConnectTimeout=10 \
-                            "$PROD_SSH_USER@180.93.43.211" \
+                            "$PROD_SSH_USER@$PROD_HOST" \
                             'whoami && hostname'
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy to Production') {
+            steps {
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: 'deploy-production',
+                        keyFileVariable: 'PROD_SSH_KEY',
+                        usernameVariable: 'PROD_SSH_USER'
+                    )
+                ]) {
+                    sh '''
+                        set -eu
+
+                        echo "=== Deploying commit $IMAGE_TAG ==="
+
+                        ssh \
+                            -i "$PROD_SSH_KEY" \
+                            -o IdentitiesOnly=yes \
+                            -o BatchMode=yes \
+                            -o StrictHostKeyChecking=yes \
+                            -o UserKnownHostsFile="$SSH_KNOWN_HOSTS" \
+                            -o ConnectTimeout=10 \
+                            "$PROD_SSH_USER@$PROD_HOST" \
+                            "IMAGE_TAG='$IMAGE_TAG' DOCKERHUB_REPO='$DOCKERHUB_REPO' PROD_DIR='$PROD_DIR' bash -s" \
+                            <<'REMOTE_SCRIPT'
+set -eu
+
+cd "$PROD_DIR"
+
+echo "=== Validate deployment configuration ==="
+test -f docker-compose.yml
+docker compose -f docker-compose.yml config -q
+
+echo "=== Pull image for this commit ==="
+docker compose -f docker-compose.yml pull backend
+
+echo "=== Update backend service ==="
+docker compose -f docker-compose.yml up -d --no-deps backend
+
+echo "=== Verify backend container ==="
+CONTAINER_ID="$(docker compose -f docker-compose.yml ps -q backend)"
+
+if [ -z "$CONTAINER_ID" ]; then
+    echo "ERROR: backend container was not created."
+    docker compose -f docker-compose.yml ps
+    exit 1
+fi
+
+CONTAINER_STATE="$(docker inspect \
+    --format '{{.State.Status}}' "$CONTAINER_ID")"
+
+if [ "$CONTAINER_STATE" != "running" ]; then
+    echo "ERROR: backend container state is $CONTAINER_STATE"
+    docker compose -f docker-compose.yml logs --tail=100 backend
+    exit 1
+fi
+
+docker compose -f docker-compose.yml ps backend
+
+echo "=== Recent backend logs ==="
+docker compose -f docker-compose.yml logs --tail=50 backend
+
+echo "Deployment command completed."
+REMOTE_SCRIPT
                     '''
                 }
             }
@@ -163,15 +228,15 @@ pipeline {
 
     post {
         success {
-            echo 'CI SUCCESS: build, test, Docker build and push completed.'
+            echo 'CI/CD SUCCESS: build, test, push and deployment completed.'
         }
 
         failure {
-            echo 'CI FAILED: inspect the failed stage in Console Output.'
+            echo 'CI/CD FAILED: inspect the failed stage in Console Output.'
         }
 
         always {
-            echo 'Pipeline execution finished.'
+            echo "Pipeline result: ${currentBuild.currentResult}"
         }
     }
 }
