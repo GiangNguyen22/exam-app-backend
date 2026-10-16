@@ -113,8 +113,7 @@ pipeline {
                     sh '''
                         set -eu
 
-                        IMAGE_REF="$DOCKERHUB_REPO:git-$IMAGE_TAG"
-                        echo "=== Connecting to Production ($PROD_USER@$PROD_HOST) to deploy $IMAGE_REF ==="
+                        echo "=== Connecting to Production ($PROD_USER@$PROD_HOST) to deploy ==="
 
                         ssh \
                             -i "$PROD_SSH_KEY" \
@@ -124,10 +123,10 @@ pipeline {
                             -o UserKnownHostsFile="$SSH_KNOWN_HOSTS" \
                             -o ConnectTimeout=10 \
                             "$PROD_USER@$PROD_HOST" \
-                            "docker pull $IMAGE_REF && \
-                             (docker stop $CONTAINER_NAME || true) && \
-                             (docker rm $CONTAINER_NAME || true) && \
-                             docker run -d --name $CONTAINER_NAME --restart always -p $CONTAINER_PORT:$CONTAINER_PORT -e SPRING_PROFILES_ACTIVE=prod $IMAGE_REF && \
+                            "cd $PROD_DIR && \
+                             git pull origin main || true && \
+                             IMAGE_TAG=git-$IMAGE_TAG docker compose pull backend && \
+                             IMAGE_TAG=git-$IMAGE_TAG docker compose up -d --remove-orphans && \
                              docker image prune -f"
 
                         echo "=== Deployment Finished Successfully ==="
