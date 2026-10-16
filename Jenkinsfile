@@ -101,7 +101,7 @@ pipeline {
             }
         }
 
-        stage('Deploy to Production') {
+stage('Deploy to Production') {
             steps {
                 withCredentials([
                     sshUserPrivateKey(
@@ -125,8 +125,8 @@ pipeline {
                             "$PROD_USER@$PROD_HOST" \
                             "cd $PROD_DIR && \
                              git pull origin main || true && \
-                             IMAGE_TAG=git-$IMAGE_TAG docker compose pull backend && \
-                             IMAGE_TAG=git-$IMAGE_TAG docker compose up -d --remove-orphans && \
+                             IMAGE_TAG=git-$IMAGE_TAG docker compose -f compose.yaml pull backend && \
+                             IMAGE_TAG=git-$IMAGE_TAG docker compose -f compose.yaml up -d --remove-orphans && \
                              docker image prune -f"
 
                         echo "=== Deployment Finished Successfully ==="
