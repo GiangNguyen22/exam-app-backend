@@ -13,9 +13,9 @@ pipeline {
         APP_JAR = 'target/exam-app-backend-0.0.1-SNAPSHOT.jar'
         PROD_HOST = '180.93.43.211'
         PROD_USER = 'deploy' // Tài khoản SSH vào server Production
-        PROD_DIR = '/opt/exam-app-backend'
+        CONTAINER_NAME = 'exam-app-backend'
+        CONTAINER_PORT = '8080' // Đổi port nếu ứng dụng Spring Boot của bạn dùng port khác
         SSH_KNOWN_HOSTS = '/home/jenkins/.ssh/known_hosts'
-        DEPLOY_SCRIPT = '/usr/local/sbin/deploy-exam-app-backend'
     }
 
     stages {
@@ -32,14 +32,9 @@ pipeline {
 
                 sh '''
                     set -eu
-
                     echo "=== Git branch and commit ==="
                     git branch --show-current
                     git log -1 --oneline
-
-                    echo "=== Repository files ==="
-                    ls -la
-
                     echo "=== Validate Docker files ==="
                     test -f Dockerfile
                     test -f .dockerignore
@@ -53,21 +48,11 @@ pipeline {
             steps {
                 sh '''
                     set -eu
-
                     chmod +x mvnw
-
-                    echo "=== Java version ==="
-                    java -version
-
-                    echo "=== Maven Wrapper version ==="
-                    ./mvnw -version
-
                     echo "=== Build and run tests ==="
                     ./mvnw -B clean verify
-
                     echo "=== Verify JAR artifact ==="
                     test -f "$APP_JAR"
-                    ls -lh "$APP_JAR"
                 '''
             }
 
@@ -85,20 +70,11 @@ pipeline {
             steps {
                 sh '''
                     set -eu
-
-                    echo "=== Validate build artifacts ==="
-                    test -f Dockerfile
-                    test -f "$APP_JAR"
-
                     echo "=== Build Docker images ==="
                     docker build --pull \
                         -t "$DOCKERHUB_REPO:test" \
                         -t "$DOCKERHUB_REPO:git-$IMAGE_TAG" \
                         .
-
-                    echo "=== Verify Docker images ==="
-                    docker image inspect "$DOCKERHUB_REPO:test" >/dev/null
-                    docker image inspect "$DOCKERHUB_REPO:git-$IMAGE_TAG" >/dev/null
                 '''
             }
         }
@@ -115,57 +91,11 @@ pipeline {
                     sh '''
                         set +x
                         set -eu
-
                         trap 'docker logout >/dev/null 2>&1 || true' EXIT
 
-                        echo "$DOCKERHUB_TOKEN" |
-                            docker login \
-                                --username "$DOCKERHUB_USER" \
-                                --password-stdin
-
+                        echo "$DOCKERHUB_TOKEN" | docker login --username "$DOCKERHUB_USER" --password-stdin
                         docker push "$DOCKERHUB_REPO:git-$IMAGE_TAG"
                         docker push "$DOCKERHUB_REPO:test"
-
-                        echo "Pushed image: $DOCKERHUB_REPO:git-$IMAGE_TAG"
-                    '''
-                }
-            }
-        }
-
-        stage('Test Production SSH') {
-            steps {
-                withCredentials([
-                    sshUserPrivateKey(
-                        credentialsId: 'deploy-production',
-                        keyFileVariable: 'PROD_SSH_KEY',
-                        usernameVariable: 'CREDENTIAL_USERNAME' // Dùng biến tạm tránh trùng lặp
-                    )
-                ]) {
-                    sh '''
-                        set -eu
-
-                        echo "=== Test SSH connection as user: $PROD_USER ==="
-
-                        ssh \
-                            -i "$PROD_SSH_KEY" \
-                            -o IdentitiesOnly=yes \
-                            -o BatchMode=yes \
-                            -o StrictHostKeyChecking=yes \
-                            -o UserKnownHostsFile="$SSH_KNOWN_HOSTS" \
-                            -o ConnectTimeout=10 \
-                            "$PROD_USER@$PROD_HOST" \
-                            'whoami && hostname'
-
-                        echo "=== Check restricted sudo permission ==="
-
-                        ssh \
-                            -i "$PROD_SSH_KEY" \
-                            -o IdentitiesOnly=yes \
-                            -o BatchMode=yes \
-                            -o StrictHostKeyChecking=yes \
-                            -o UserKnownHostsFile="$SSH_KNOWN_HOSTS" \
-                            "$PROD_USER@$PROD_HOST" \
-                            "sudo -n -l $DEPLOY_SCRIPT"
                     '''
                 }
             }
@@ -184,9 +114,7 @@ pipeline {
                         set -eu
 
                         IMAGE_REF="$DOCKERHUB_REPO:git-$IMAGE_TAG"
-
-                        echo "=== Deploy image: $IMAGE_REF ==="
-                        echo "=== Production host: $PROD_HOST (User: $PROD_USER) ==="
+                        echo "=== Connecting to Production ($PROD_USER@$PROD_HOST) to deploy $IMAGE_REF ==="
 
                         ssh \
                             -i "$PROD_SSH_KEY" \
@@ -196,10 +124,28 @@ pipeline {
                             -o UserKnownHostsFile="$SSH_KNOWN_HOSTS" \
                             -o ConnectTimeout=10 \
                             "$PROD_USER@$PROD_HOST" \
-                            "sudo -n $DEPLOY_SCRIPT 'git-$IMAGE_TAG'"
+                            "bash -s" << EOF
+                                echo "1. Pulling latest image from Docker Hub..."
+                                docker pull $IMAGE_REF
 
-                        echo "=== Deployment script completed ==="
-                        echo "Deployed image: $IMAGE_REF"
+                                echo "2. Stopping and removing old container..."
+                                if [ \$(docker ps -a -q -f name=$CONTAINER_NAME) ]; then
+                                    docker stop $CONTAINER_NAME || true
+                                    docker rm $CONTAINER_NAME || true
+                                fi
+
+                                echo "3. Running new container..."
+                                docker run -d \\
+                                    --name $CONTAINER_NAME \\
+                                    --restart always \\
+                                    -p $CONTAINER_PORT:$CONTAINER_PORT \\
+                                    -e SPRING_PROFILES_ACTIVE=prod \\
+                                    $IMAGE_REF
+
+                                echo "4. Cleaning up old images..."
+                                docker image prune -f
+                                echo "=== Deployment Finished Successfully ==="
+                        EOF
                     '''
                 }
             }
@@ -208,15 +154,10 @@ pipeline {
 
     post {
         success {
-            echo 'CI/CD SUCCESS: build, test, push and deployment completed.'
+            echo 'CI/CD SUCCESS: build, test, push and automated deployment completed.'
         }
-
         failure {
             echo 'CI/CD FAILED: inspect the failed stage in Console Output.'
-        }
-
-        always {
-            echo "Pipeline result: ${currentBuild.currentResult}"
         }
     }
 }
