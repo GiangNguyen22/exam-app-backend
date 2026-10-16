@@ -124,28 +124,13 @@ pipeline {
                             -o UserKnownHostsFile="$SSH_KNOWN_HOSTS" \
                             -o ConnectTimeout=10 \
                             "$PROD_USER@$PROD_HOST" \
-                            "bash -s" << EOF
-                                echo "1. Pulling latest image from Docker Hub..."
-                                docker pull $IMAGE_REF
+                            "docker pull $IMAGE_REF && \
+                             (docker stop $CONTAINER_NAME || true) && \
+                             (docker rm $CONTAINER_NAME || true) && \
+                             docker run -d --name $CONTAINER_NAME --restart always -p $CONTAINER_PORT:$CONTAINER_PORT -e SPRING_PROFILES_ACTIVE=prod $IMAGE_REF && \
+                             docker image prune -f"
 
-                                echo "2. Stopping and removing old container..."
-                                if [ \$(docker ps -a -q -f name=$CONTAINER_NAME) ]; then
-                                    docker stop $CONTAINER_NAME || true
-                                    docker rm $CONTAINER_NAME || true
-                                fi
-
-                                echo "3. Running new container..."
-                                docker run -d \\
-                                    --name $CONTAINER_NAME \\
-                                    --restart always \\
-                                    -p $CONTAINER_PORT:$CONTAINER_PORT \\
-                                    -e SPRING_PROFILES_ACTIVE=prod \\
-                                    $IMAGE_REF
-
-                                echo "4. Cleaning up old images..."
-                                docker image prune -f
-                                echo "=== Deployment Finished Successfully ==="
-                        EOF
+                        echo "=== Deployment Finished Successfully ==="
                     '''
                 }
             }
