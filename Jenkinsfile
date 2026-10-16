@@ -186,21 +186,21 @@ set -eu
 cd "$PROD_DIR"
 
 echo "=== Validate deployment configuration ==="
-test -f docker-compose.yml
-docker compose -f docker-compose.yml config -q
+test -f compose.yaml
+docker compose -f compose.yaml config -q
 
 echo "=== Pull image for this commit ==="
-docker compose -f docker-compose.yml pull backend
+docker compose -f compose.yaml pull backend
 
 echo "=== Update backend service ==="
-docker compose -f docker-compose.yml up -d --no-deps backend
+docker compose -f compose.yaml up -d --no-deps backend
 
 echo "=== Verify backend container ==="
-CONTAINER_ID="$(docker compose -f docker-compose.yml ps -q backend)"
+CONTAINER_ID="$(docker compose -f compose.yaml ps -q backend)"
 
 if [ -z "$CONTAINER_ID" ]; then
     echo "ERROR: backend container was not created."
-    docker compose -f docker-compose.yml ps
+    docker compose -f compose.yaml ps
     exit 1
 fi
 
@@ -209,14 +209,14 @@ CONTAINER_STATE="$(docker inspect \
 
 if [ "$CONTAINER_STATE" != "running" ]; then
     echo "ERROR: backend container state is $CONTAINER_STATE"
-    docker compose -f docker-compose.yml logs --tail=100 backend
+    docker compose -f compose.yaml logs --tail=100 backend
     exit 1
 fi
 
-docker compose -f docker-compose.yml ps backend
+docker compose -f compose.yaml ps backend
 
 echo "=== Recent backend logs ==="
-docker compose -f docker-compose.yml logs --tail=50 backend
+docker compose -f compose.yaml logs --tail=50 backend
 
 echo "Deployment command completed."
 REMOTE_SCRIPT
