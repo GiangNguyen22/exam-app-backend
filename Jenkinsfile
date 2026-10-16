@@ -15,6 +15,7 @@ pipeline {
         PROD_HOST = '180.93.43.211'
         PROD_DIR = '/opt/exam-app-backend'
         SSH_KNOWN_HOSTS = '/home/jenkins/.ssh/known_hosts'
+        DEPLOY_SCRIPT = '/usr/local/sbin/deploy-exam-app-backend'
     }
 
     stages {
@@ -143,6 +144,8 @@ pipeline {
                     sh '''
                         set -eu
 
+                        echo "=== Test SSH connection ==="
+
                         ssh \
                             -i "$PROD_SSH_KEY" \
                             -o IdentitiesOnly=yes \
@@ -152,6 +155,17 @@ pipeline {
                             -o ConnectTimeout=10 \
                             "$PROD_SSH_USER@$PROD_HOST" \
                             'whoami && hostname'
+
+                        echo "=== Check restricted sudo permission ==="
+
+                        ssh \
+                            -i "$PROD_SSH_KEY" \
+                            -o IdentitiesOnly=yes \
+                            -o BatchMode=yes \
+                            -o StrictHostKeyChecking=yes \
+                            -o UserKnownHostsFile="$SSH_KNOWN_HOSTS" \
+                            "$PROD_SSH_USER@$PROD_HOST" \
+                            "sudo -n -l $DEPLOY_SCRIPT"
                     '''
                 }
             }
@@ -169,7 +183,10 @@ pipeline {
                     sh '''
                         set -eu
 
-                        echo "=== Deploying commit $IMAGE_TAG ==="
+                        IMAGE_REF="$DOCKERHUB_REPO:git-$IMAGE_TAG"
+
+                        echo "=== Deploy image: $IMAGE_REF ==="
+                        echo "=== Production host: $PROD_HOST ==="
 
                         ssh \
                             -i "$PROD_SSH_KEY" \
@@ -179,47 +196,10 @@ pipeline {
                             -o UserKnownHostsFile="$SSH_KNOWN_HOSTS" \
                             -o ConnectTimeout=10 \
                             "$PROD_SSH_USER@$PROD_HOST" \
-                            "IMAGE_TAG='$IMAGE_TAG' DOCKERHUB_REPO='$DOCKERHUB_REPO' PROD_DIR='$PROD_DIR' bash -s" \
-                            <<'REMOTE_SCRIPT'
-set -eu
+                            "sudo -n $DEPLOY_SCRIPT 'git-$IMAGE_TAG'"
 
-cd "$PROD_DIR"
-
-echo "=== Validate deployment configuration ==="
-test -f compose.yaml
-docker compose -f compose.yaml config -q
-
-echo "=== Pull image for this commit ==="
-docker compose -f compose.yaml pull backend
-
-echo "=== Update backend service ==="
-docker compose -f compose.yaml up -d --no-deps backend
-
-echo "=== Verify backend container ==="
-CONTAINER_ID="$(docker compose -f compose.yaml ps -q backend)"
-
-if [ -z "$CONTAINER_ID" ]; then
-    echo "ERROR: backend container was not created."
-    docker compose -f compose.yaml ps
-    exit 1
-fi
-
-CONTAINER_STATE="$(docker inspect \
-    --format '{{.State.Status}}' "$CONTAINER_ID")"
-
-if [ "$CONTAINER_STATE" != "running" ]; then
-    echo "ERROR: backend container state is $CONTAINER_STATE"
-    docker compose -f compose.yaml logs --tail=100 backend
-    exit 1
-fi
-
-docker compose -f compose.yaml ps backend
-
-echo "=== Recent backend logs ==="
-docker compose -f compose.yaml logs --tail=50 backend
-
-echo "Deployment command completed."
-REMOTE_SCRIPT
+                        echo "=== Deployment script completed ==="
+                        echo "Deployed image: $IMAGE_REF"
                     '''
                 }
             }
