@@ -160,7 +160,7 @@ stage('Test Production SSH') {
     steps {
         withCredentials([
             sshUserPrivateKey(
-                credentialsId: 'deploy-server',
+                credentialsId: 'deploy-production',
                 keyFileVariable: 'PROD_SSH_KEY',
                 usernameVariable: 'PROD_SSH_USER'
             )
