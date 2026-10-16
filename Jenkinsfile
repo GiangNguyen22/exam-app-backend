@@ -1,4 +1,3 @@
-
 pipeline {
     agent { label 'build-server-01' }
 
@@ -13,6 +12,7 @@ pipeline {
         DOCKERHUB_REPO = 'doanpv10/exam-app-backend'
         APP_JAR = 'target/exam-app-backend-0.0.1-SNAPSHOT.jar'
         PROD_HOST = '180.93.43.211'
+        PROD_USER = 'deploy' // Tài khoản SSH vào server Production
         PROD_DIR = '/opt/exam-app-backend'
         SSH_KNOWN_HOSTS = '/home/jenkins/.ssh/known_hosts'
         DEPLOY_SCRIPT = '/usr/local/sbin/deploy-exam-app-backend'
@@ -138,13 +138,13 @@ pipeline {
                     sshUserPrivateKey(
                         credentialsId: 'deploy-production',
                         keyFileVariable: 'PROD_SSH_KEY',
-                        usernameVariable: 'PROD_SSH_USER'
+                        usernameVariable: 'CREDENTIAL_USERNAME' // Dùng biến tạm tránh trùng lặp
                     )
                 ]) {
                     sh '''
                         set -eu
 
-                        echo "=== Test SSH connection ==="
+                        echo "=== Test SSH connection as user: $PROD_USER ==="
 
                         ssh \
                             -i "$PROD_SSH_KEY" \
@@ -153,7 +153,7 @@ pipeline {
                             -o StrictHostKeyChecking=yes \
                             -o UserKnownHostsFile="$SSH_KNOWN_HOSTS" \
                             -o ConnectTimeout=10 \
-                            "$PROD_SSH_USER@$PROD_HOST" \
+                            "$PROD_USER@$PROD_HOST" \
                             'whoami && hostname'
 
                         echo "=== Check restricted sudo permission ==="
@@ -164,7 +164,7 @@ pipeline {
                             -o BatchMode=yes \
                             -o StrictHostKeyChecking=yes \
                             -o UserKnownHostsFile="$SSH_KNOWN_HOSTS" \
-                            "$PROD_SSH_USER@$PROD_HOST" \
+                            "$PROD_USER@$PROD_HOST" \
                             "sudo -n -l $DEPLOY_SCRIPT"
                     '''
                 }
@@ -177,7 +177,7 @@ pipeline {
                     sshUserPrivateKey(
                         credentialsId: 'deploy-production',
                         keyFileVariable: 'PROD_SSH_KEY',
-                        usernameVariable: 'PROD_SSH_USER'
+                        usernameVariable: 'CREDENTIAL_USERNAME'
                     )
                 ]) {
                     sh '''
@@ -186,7 +186,7 @@ pipeline {
                         IMAGE_REF="$DOCKERHUB_REPO:git-$IMAGE_TAG"
 
                         echo "=== Deploy image: $IMAGE_REF ==="
-                        echo "=== Production host: $PROD_HOST ==="
+                        echo "=== Production host: $PROD_HOST (User: $PROD_USER) ==="
 
                         ssh \
                             -i "$PROD_SSH_KEY" \
@@ -195,7 +195,7 @@ pipeline {
                             -o StrictHostKeyChecking=yes \
                             -o UserKnownHostsFile="$SSH_KNOWN_HOSTS" \
                             -o ConnectTimeout=10 \
-                            "$PROD_SSH_USER@$PROD_HOST" \
+                            "$PROD_USER@$PROD_HOST" \
                             "sudo -n $DEPLOY_SCRIPT 'git-$IMAGE_TAG'"
 
                         echo "=== Deployment script completed ==="
