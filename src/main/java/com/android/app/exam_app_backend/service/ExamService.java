@@ -33,11 +33,13 @@ import com.android.app.exam_app_backend.entity.StudentGroup;
 import com.android.app.exam_app_backend.repository.StudentGroupMemberRepository;
 import com.android.app.exam_app_backend.repository.StudentGroupRepository;
 import com.android.app.exam_app_backend.security.PermissionConstants;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -96,6 +98,33 @@ public class ExamService {
     }
 
     @Transactional(readOnly = true)
+    public ExamResponse getExamForStudent(Long examId, Authentication authentication) {
+        Exam exam = examRepository.findById(examId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Exam not found: " + examId));
+
+        if (authentication == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
+
+        boolean studentView = isStudent(authentication);
+        if (studentView) {
+            User student = userRepository.findByUsername(authentication.getName()).orElse(null);
+            if (student == null) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Student not found");
+            }
+
+            List<Long> userGroupIds = getUserGroupIds(authentication.getName());
+            LocalDateTime now = LocalDateTime.now();
+            if (!isExamVisibleToStudent(exam, now, userGroupIds, authentication.getName())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Student is not assigned to this exam");
+            }
+            return toResponse(exam, authentication);
+        }
+
+        return toResponse(exam, authentication);
+    }
+
+    @Transactional(readOnly = true)
     public List<ExamResponse> getExams(Authentication authentication) {
         boolean studentView = authentication != null && authentication.getAuthorities().stream()
                 .anyMatch(authority -> "ROLE_STUDENT".equals(authority.getAuthority()));
@@ -112,7 +141,7 @@ public class ExamService {
 
         List<Long> finalUserGroupIds = userGroupIds;
         return examRepository.findAll().stream()
-                .filter(exam -> !studentView || isExamVisibleToStudent(exam, now, finalUserGroupIds, authentication == null ? null : authentication.getName()))
+                .filter(exam -> !studentView || isExamVisibleToStudent(exam, now, finalUserGroupIds, authentication == null ? null : authentication.getName(), true))
                 .map(exam -> toResponse(exam, authentication))
                 .collect(Collectors.toList());
     }
@@ -123,19 +152,31 @@ public class ExamService {
                 .anyMatch(authority -> "ROLE_STUDENT".equals(authority.getAuthority()));
         LocalDateTime now = LocalDateTime.now();
 
-        List<Long> userGroupIds = null;
         if (studentView) {
-            userGroupIds = userRepository.findByUsername(authentication.getName())
+            List<Long> userGroupIds = userRepository.findByUsername(authentication.getName())
                     .map(user -> studentGroupMemberRepository.findByUserId(user.getId()).stream()
                             .map(m -> m.getGroup().getId())
                             .collect(Collectors.toList()))
-                    .orElse(null);
+                    .orElse(List.of());
+
+            if (userGroupIds.isEmpty()) {
+                return List.of();
+            }
+
+            return examRepository.findDistinctByGroups_IdIn(userGroupIds).stream()
+                    .filter(exam -> exam.getStartTime() != null || exam.getEndTime() != null)
+                    .filter(exam -> isExamVisibleToStudent(exam, now, userGroupIds, authentication.getName(), true))
+                    .sorted((left, right) -> {
+                        LocalDateTime leftTime = left.getStartTime() != null ? left.getStartTime() : LocalDateTime.MAX;
+                        LocalDateTime rightTime = right.getStartTime() != null ? right.getStartTime() : LocalDateTime.MAX;
+                        return leftTime.compareTo(rightTime);
+                    })
+                    .map(exam -> toResponse(exam, authentication))
+                    .collect(Collectors.toList());
         }
 
-        List<Long> finalUserGroupIds = userGroupIds;
         return examRepository.findAll().stream()
                 .filter(exam -> exam.getStartTime() != null || exam.getEndTime() != null)
-                .filter(exam -> !studentView || isExamVisibleToStudent(exam, now, finalUserGroupIds, authentication == null ? null : authentication.getName()))
                 .sorted((left, right) -> {
                     LocalDateTime leftTime = left.getStartTime() != null ? left.getStartTime() : LocalDateTime.MAX;
                     LocalDateTime rightTime = right.getStartTime() != null ? right.getStartTime() : LocalDateTime.MAX;
@@ -145,18 +186,59 @@ public class ExamService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public List<ExamResponse> getMyValidAndUpcomingExams(Authentication authentication) {
+        if (authentication == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
+
+        if (!isStudent(authentication)) {
+            return List.of();
+        }
+
+        User student = userRepository.findByUsername(authentication.getName())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Student not found"));
+
+        List<Long> userGroupIds = studentGroupMemberRepository.findByUserId(student.getId()).stream()
+                .map(member -> member.getGroup().getId())
+                .distinct()
+                .collect(Collectors.toList());
+
+        if (userGroupIds.isEmpty()) {
+            return List.of();
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+
+        return examRepository.findDistinctByGroups_IdIn(userGroupIds).stream()
+                .filter(exam -> exam.getGroups() != null && !exam.getGroups().isEmpty())
+                .filter(exam -> exam.getGroups().stream().anyMatch(group -> userGroupIds.contains(group.getId())))
+                .filter(exam -> exam.getEndTime() == null || !now.isAfter(exam.getEndTime()))
+                .filter(exam -> !isAttemptAvailableForStudent(exam, student) ? false : true)
+                .sorted(Comparator.comparing(Exam::getStartTime, Comparator.nullsLast(LocalDateTime::compareTo)))
+                .map(exam -> toResponse(exam, authentication))
+                .collect(Collectors.toList());
+    }
+
     private boolean isExamVisibleToStudent(Exam exam, LocalDateTime now, List<Long> userGroupIds, String username) {
-        if (exam.getStartTime() != null && now.isBefore(exam.getStartTime())) {
+        return isExamVisibleToStudent(exam, now, userGroupIds, username, false);
+    }
+
+    private boolean isExamVisibleToStudent(Exam exam, LocalDateTime now, List<Long> userGroupIds, String username, boolean includeUpcoming) {
+        if (exam.getStartTime() != null && now.isBefore(exam.getStartTime()) && !includeUpcoming) {
             return false;
         }
         if (exam.getEndTime() != null && now.isAfter(exam.getEndTime())) {
             return false;
         }
-        if (exam.getGroups() != null && !exam.getGroups().isEmpty()) {
-            if (userGroupIds == null || userGroupIds.isEmpty()) return false;
-            if (!exam.getGroups().stream().anyMatch(g -> userGroupIds.contains(g.getId()))) {
-                return false;
-            }
+        if (exam.getGroups() == null || exam.getGroups().isEmpty()) {
+            return false;
+        }
+        if (userGroupIds == null || userGroupIds.isEmpty()) {
+            return false;
+        }
+        if (!exam.getGroups().stream().anyMatch(g -> userGroupIds.contains(g.getId()))) {
+            return false;
         }
         if (username != null && userRepository.findByUsername(username).isPresent()) {
             User student = userRepository.findByUsername(username).get();
@@ -218,7 +300,7 @@ public class ExamService {
         return examResultRepository.save(newAttempt);
     }
 
-    @Scheduled(fixedDelay = 30000)
+    @Scheduled(fixedDelayString = "${app.exam.auto-submit-delay-ms:30000}")
     @Transactional
     public void autoSubmitExpiredExams() {
         LocalDateTime now = LocalDateTime.now();

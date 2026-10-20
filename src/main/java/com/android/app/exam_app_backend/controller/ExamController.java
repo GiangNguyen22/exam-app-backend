@@ -48,6 +48,27 @@ public class ExamController {
                 .build());
     }
 
+    @GetMapping("/me/valid")
+    public ResponseEntity<ApiResponse<List<ExamResponse>>> getMyValidAndUpcomingExams(Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.<List<ExamResponse>>builder()
+                .success(true)
+                .code(HttpStatus.OK.value())
+                .message("Student valid and upcoming exams retrieved")
+                .data(examService.getMyValidAndUpcomingExams(authentication))
+                .build());
+    }
+
+    @GetMapping("/{examId}")
+    public ResponseEntity<ApiResponse<ExamResponse>> getExam(@PathVariable Long examId,
+                                                           Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.<ExamResponse>builder()
+                .success(true)
+                .code(HttpStatus.OK.value())
+                .message("Exam retrieved")
+                .data(examService.getExamForStudent(examId, authentication))
+                .build());
+    }
+
     @GetMapping("/{examId}/questions")
     public ResponseEntity<ApiResponse<List<ExamQuestionResponse>>> getExamQuestions(@PathVariable Long examId,
                                                                                    Authentication authentication) {

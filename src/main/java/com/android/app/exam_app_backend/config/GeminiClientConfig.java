@@ -17,15 +17,12 @@ public class GeminiClientConfig {
     private static final Logger log = LoggerFactory.getLogger(GeminiClientConfig.class);
 
     @Bean
-    public String geminiApiKey(@Value("${app.ai.gemini.api-key:}") String apiKey) {
-        if (apiKey == null || apiKey.isBlank()) {
-            log.warn("GEMINI_API_KEY not configured. AI explanation feature will be disabled.");
-        }
-        return apiKey;
-    }
-
-    @Bean
     public Client geminiClient(@Value("${app.ai.gemini.api-key:}") String apiKey) {
-        return Client.builder().apiKey(apiKey == null ? "" : apiKey).build();
+        String normalizedKey = apiKey == null ? "" : apiKey.trim();
+        if (normalizedKey.isEmpty()) {
+            log.warn("GEMINI_API_KEY not configured. AI explanation feature will be disabled.");
+            return Client.builder().apiKey("").build();
+        }
+        return Client.builder().apiKey(normalizedKey).build();
     }
 }
