@@ -3,6 +3,7 @@ package com.android.app.exam_app_backend.service;
 import com.android.app.exam_app_backend.entity.Exam;
 import com.android.app.exam_app_backend.entity.ProctoringEvent;
 import com.android.app.exam_app_backend.entity.User;
+import com.android.app.exam_app_backend.entity.enums.SecurityEventType;
 import com.android.app.exam_app_backend.payload.ProctoringEventRequest;
 import com.android.app.exam_app_backend.payload.ProctoringEventResponse;
 import com.android.app.exam_app_backend.payload.ProctoringSummaryResponse;
@@ -25,7 +26,15 @@ public class ProctoringEventService {
     private final ExamRepository examRepository;
     private final UserRepository userRepository;
 
-    private static final List<String> ALERT_EVENT_TYPES = List.of("FOCUS_LOST", "CONNECTION_LOST", "SCREENSHOT");
+    private static final List<String> ALERT_EVENT_TYPES = List.of(
+            SecurityEventType.APP_BACKGROUND.name(),
+            "FOCUS_LOST",
+            SecurityEventType.SCREENSHOT_ATTEMPT.name(),
+            "SCREENSHOT",
+            SecurityEventType.SPLIT_SCREEN_DETECTED.name(),
+            "SPLIT_SCREEN",
+            SecurityEventType.CONNECTION_LOST.name()
+    );
     private static final long ALERT_WINDOW_SECONDS = 120;
 
     public ProctoringEventService(ProctoringEventRepository repository,
@@ -43,10 +52,13 @@ public class ProctoringEventService {
         User student = userRepository.findById(studentId)
                 .orElseThrow(() -> new RuntimeException("Student not found: " + studentId));
 
+        SecurityEventType normalizedType = SecurityEventType.fromString(request.getEventType());
+        String eventType = normalizedType != null ? normalizedType.name() : request.getEventType();
+
         ProctoringEvent event = new ProctoringEvent();
         event.setExam(exam);
         event.setStudent(student);
-        event.setEventType(request.getEventType());
+        event.setEventType(eventType);
         event.setDetails(request.getDetails());
         event = repository.save(event);
 
@@ -96,12 +108,18 @@ public class ProctoringEventService {
     }
 
     private String getAlertLabel(String eventType) {
-        switch (eventType) {
-            case "FOCUS_LOST": return "Rời khỏi ứng dụng";
-            case "CONNECTION_LOST": return "Mất kết nối";
-            case "SCREENSHOT": return "Chụp màn hình";
-            default: return eventType;
+        SecurityEventType type = SecurityEventType.fromString(eventType);
+        if (type != null) {
+            switch (type) {
+                case APP_BACKGROUND: return "Rời khỏi ứng dụng";
+                case APP_FOREGROUND: return "Quay lại ứng dụng";
+                case SCREENSHOT_ATTEMPT: return "Chụp màn hình";
+                case SPLIT_SCREEN_DETECTED: return "Chia đôi màn hình";
+                case CONNECTION_LOST: return "Mất kết nối";
+                case CONNECTION_RESTORED: return "Khôi phục kết nối";
+            }
         }
+        return eventType;
     }
 
     private ProctoringEventResponse toResponse(ProctoringEvent event) {
