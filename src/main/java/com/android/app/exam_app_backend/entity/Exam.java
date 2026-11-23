@@ -36,6 +36,9 @@ public class Exam extends BaseEntity {
     @Column(name = "end_time")
     private LocalDateTime endTime;
 
+    @Column(name = "max_attempts")
+    private Integer maxAttempts = 1;
+
     @Column(name = "shuffle_questions")
     private Boolean shuffleQuestions = true;
 

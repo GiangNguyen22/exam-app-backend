@@ -1,6 +1,5 @@
 package com.android.app.exam_app_backend.service;
 
-import com.android.app.exam_app_backend.entity.Answer;
 import com.android.app.exam_app_backend.entity.Exam;
 import com.android.app.exam_app_backend.entity.ExamQuestion;
 import com.android.app.exam_app_backend.entity.ExamResult;
@@ -12,12 +11,12 @@ import com.android.app.exam_app_backend.exception.ResourceNotFoundException;
 import com.android.app.exam_app_backend.payload.ExamReportResponse;
 import com.android.app.exam_app_backend.payload.ExamResultDetailResponse;
 import com.android.app.exam_app_backend.payload.ExamResultResponse;
+import com.android.app.exam_app_backend.payload.StudentExamResultResponse;
 import com.android.app.exam_app_backend.repository.ExamQuestionRepository;
 import com.android.app.exam_app_backend.repository.ExamRepository;
 import com.android.app.exam_app_backend.repository.ExamResultRepository;
 import com.android.app.exam_app_backend.repository.StudentResponseRepository;
 import com.android.app.exam_app_backend.repository.UserRepository;
-import com.android.app.exam_app_backend.security.PermissionConstants;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -25,7 +24,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -172,7 +170,7 @@ public class ResultService {
         if (isStudent(authentication)) {
             User student = userRepository.findByUsername(authentication.getName())
                     .orElseThrow(() -> new ResourceNotFoundException("User not found: " + authentication.getName()));
-            return examResultRepository.findByStudentIdAndExamId(student.getId(), examId)
+            return examResultRepository.findFirstByStudentIdAndExamIdOrderByAttemptNumberDesc(student.getId(), examId)
                     .orElseThrow(() -> new ResourceNotFoundException("Result not found for exam: " + examId));
         }
 
@@ -184,18 +182,19 @@ public class ResultService {
         if (raw == null || raw.isBlank()) {
             return java.util.Collections.emptyList();
         }
-        return Arrays.stream(raw.split(","))
-                .map(String::trim)
-                .filter(value -> !value.isEmpty())
-                .map(value -> {
-                    try {
-                        return Long.parseLong(value);
-                    } catch (NumberFormatException ex) {
-                        return null;
-                    }
-                })
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
+        List<Long> selectedAnswerIds = new java.util.ArrayList<>();
+        for (String part : raw.split(",")) {
+            String value = part == null ? "" : part.trim();
+            if (value.isEmpty()) {
+                continue;
+            }
+            try {
+                selectedAnswerIds.add(Long.parseLong(value));
+            } catch (NumberFormatException ex) {
+                // Ignore malformed answer ids and keep the rest of the payload usable.
+            }
+        }
+        return selectedAnswerIds;
     }
 
     private boolean isBlankResponse(String type, List<Long> selectedAnswerIds, String fillContent) {
@@ -217,11 +216,44 @@ public class ResultService {
                     .anyMatch(normalized::equals);
         }
         Set<Long> selected = Set.copyOf(selectedAnswerIds);
-        Set<Long> correctIds = question.getAnswers().stream()
-                .filter(answer -> Boolean.TRUE.equals(answer.getIsCorrect()))
-                .map(Answer::getId)
-                .collect(Collectors.toSet());
+        Set<Long> correctIds = new java.util.HashSet<>();
+        for (com.android.app.exam_app_backend.entity.Answer answer : question.getAnswers()) {
+            if (answer != null && Boolean.TRUE.equals(answer.getIsCorrect())) {
+                correctIds.add(answer.getId());
+            }
+        }
         return !selected.isEmpty() && selected.equals(correctIds);
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("@permissionEvaluator.hasAnyPermission(authentication, T(com.android.app.exam_app_backend.security.PermissionConstants).EXAM_VIEW_RESULTS, T(com.android.app.exam_app_backend.security.PermissionConstants).EXAM_VIEW_OWN_RESULTS)")
+    public List<StudentExamResultResponse> viewStudentResults(Long studentId, Authentication authentication) {
+        if (isStudent(authentication)) {
+            User currentUser = userRepository.findByUsername(authentication.getName())
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found: " + authentication.getName()));
+            if (!Objects.equals(currentUser.getId(), studentId)) {
+                throw new IllegalArgumentException("You can only view your own exam results.");
+            }
+        }
+
+        return examResultRepository.findByStudentIdOrderBySubmittedAtDesc(studentId).stream()
+                .filter(result -> result.getExam() != null)
+                .map(result -> StudentExamResultResponse.builder()
+                        .resultId(result.getId())
+                        .examId(result.getExam().getId())
+                        .examTitle(result.getExam().getTitle())
+                        .score(result.getScore())
+                        .status(result.getStatus())
+                        .submittedAt(result.getSubmittedAt())
+                        .attemptNumber(result.getAttemptNumber())
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("@permissionEvaluator.hasAnyPermission(authentication, T(com.android.app.exam_app_backend.security.PermissionConstants).EXAM_VIEW_RESULTS, T(com.android.app.exam_app_backend.security.PermissionConstants).EXAM_VIEW_OWN_RESULTS)")
+    public List<StudentExamResultResponse> viewStudentAllExamResults(Long studentId, Authentication authentication) {
+        return viewStudentResults(studentId, authentication);
     }
 
     @Transactional(readOnly = true)
@@ -231,13 +263,15 @@ public class ResultService {
                 .orElseThrow(() -> new ResourceNotFoundException("Exam not found: " + examId));
         List<ExamResult> results = examResultRepository.findByExamIdOrderByIdDesc(examId);
 
-        List<BigDecimal> scores = results.stream()
-                .map(ExamResult::getScore)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
+        List<BigDecimal> scores = new java.util.ArrayList<>();
+        for (ExamResult result : results) {
+            if (result != null && result.getScore() != null) {
+                scores.add(result.getScore());
+            }
+        }
         BigDecimal averageScore = null;
         if (!scores.isEmpty()) {
-            BigDecimal totalScore = scores.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal totalScore = scores.stream().reduce(BigDecimal.ZERO, (left, right) -> left.add(right));
             averageScore = totalScore.divide(BigDecimal.valueOf(scores.size()), 2, RoundingMode.HALF_UP);
         }
 

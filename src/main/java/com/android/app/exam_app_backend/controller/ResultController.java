@@ -4,8 +4,11 @@ import com.android.app.exam_app_backend.common.dto.ApiResponse;
 import com.android.app.exam_app_backend.payload.ExamReportResponse;
 import com.android.app.exam_app_backend.payload.ExamResultDetailResponse;
 import com.android.app.exam_app_backend.payload.ExamResultResponse;
+import com.android.app.exam_app_backend.payload.StudentExamResultResponse;
 import com.android.app.exam_app_backend.service.ResultService;
 import org.springframework.http.HttpStatus;
+
+import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -45,6 +48,17 @@ public class ResultController {
                 .build());
     }
 
+    @GetMapping("/students/{studentId}")
+    public ResponseEntity<ApiResponse<List<StudentExamResultResponse>>> viewStudentResults(@PathVariable Long studentId,
+                                                                                       Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.<List<StudentExamResultResponse>>builder()
+                .success(true)
+                .code(HttpStatus.OK.value())
+                .message("Student results retrieved")
+                .data(resultService.viewStudentResults(studentId, authentication))
+                .build());
+    }
+
     @GetMapping("/exams/{examId}/report")
     public ResponseEntity<ApiResponse<ExamReportResponse>> viewExamReport(@PathVariable Long examId) {
         return ResponseEntity.ok(ApiResponse.<ExamReportResponse>builder()
@@ -52,6 +66,17 @@ public class ResultController {
                 .code(HttpStatus.OK.value())
                 .message("Report retrieved")
                 .data(resultService.viewExamReport(examId))
+                .build());
+    }
+
+    @GetMapping("/results/exams/student/{studentId}")
+    public ResponseEntity<ApiResponse<List<StudentExamResultResponse>>> viewStudentAllExamResults(@PathVariable Long studentId,
+                                                                                                 Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.<List<StudentExamResultResponse>>builder()
+                .success(true)
+                .code(HttpStatus.OK.value())
+                .message("Student all exam results retrieved")
+                .data(resultService.viewStudentAllExamResults(studentId, authentication))
                 .build());
     }
 }

@@ -32,6 +32,8 @@ jwt:
 app:
   upload:
     dir: ${APP_UPLOAD_DIR:uploads}
+  exam:
+    auto-submit-delay-ms: ${EXAM_AUTO_SUBMIT_DELAY_MS:30000}
   ai:
     gemini:
       api-key: ${GEMINI_API_KEY:}

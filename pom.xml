@@ -28,7 +28,7 @@
 	</scm>
 	<properties>
 		<java.version>11</java.version>
-		<lombok.version>1.18.28</lombok.version>
+		<lombok.version>1.18.36</lombok.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -97,6 +97,11 @@
 			<groupId>org.apache.poi</groupId>
 			<artifactId>poi-ooxml</artifactId>
 			<version>5.2.5</version>
+		</dependency>
+		<dependency>
+			<groupId>org.springdoc</groupId>
+			<artifactId>springdoc-openapi-ui</artifactId>
+			<version>1.7.0</version>
 		</dependency>
 
 		<!-- Google Gen AI Java SDK (Gemini) -->

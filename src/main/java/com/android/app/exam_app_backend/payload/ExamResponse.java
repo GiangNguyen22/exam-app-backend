@@ -17,9 +17,11 @@ public class ExamResponse {
     private BigDecimal scorePerQuestion;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
+    private Integer maxAttempts;
     private Boolean shuffleQuestions;
     private Boolean shuffleAnswers;
     private Boolean showAnswersAfterSubmit;
+    private String status;
     private List<Long> groupIds;
     private Integer totalQuestions;
 }

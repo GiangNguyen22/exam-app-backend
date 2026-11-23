@@ -9,6 +9,7 @@ import com.google.genai.types.ThinkingConfig;
 import com.google.genai.types.ThinkingLevel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -24,13 +25,18 @@ public class GeminiService {
     private final Client client;
     private final String apiKey;
     private final String model;
+    private final boolean enabled;
 
-    public GeminiService(Client client,
-                         String geminiApiKey,
+    public GeminiService(@Autowired(required = false) Client client,
+                         @Value("${app.ai.gemini.api-key:}") String apiKey,
                          @Value("${app.ai.gemini.model:gemini-3.5-flash-lite}") String model) {
         this.client = client;
-        this.apiKey = geminiApiKey;
+        this.apiKey = apiKey == null ? "" : apiKey.trim();
         this.model = model;
+        this.enabled = this.client != null && !this.apiKey.isBlank();
+        if (!this.enabled) {
+            log.warn("Gemini AI disabled: missing or invalid GEMINI_API_KEY.");
+        }
     }
 
     /**
@@ -38,13 +44,11 @@ public class GeminiService {
      * Nếu chưa cấu hình API key hoặc có lỗi gọi AI, trả về null để UI xử lý linh hoạt.
      */
     public AiExplainResponse explain(AiExplainRequest request) {
-
-        long totalStart = System.nanoTime();
-
-        if (apiKey == null || apiKey.isBlank()) {
+        if (request == null || !enabled || client == null) {
             return null;
         }
 
+        long totalStart = System.nanoTime();
         long promptStart = System.nanoTime();
 
         String prompt = buildPrompt(request);
@@ -69,7 +73,7 @@ public class GeminiService {
 
             long geminiTime = System.nanoTime() - geminiStart;
 
-            String text = response.text();
+            String text = response == null ? null : response.text();
 
             long totalTime = System.nanoTime() - totalStart;
 
