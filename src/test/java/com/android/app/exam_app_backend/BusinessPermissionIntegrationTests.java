@@ -21,6 +21,35 @@ class BusinessPermissionIntegrationTests {
     @Autowired
     private MockMvc mockMvc;
 
+    @Autowired
+    private com.android.app.exam_app_backend.repository.StudentGroupRepository studentGroupRepository;
+
+    @Autowired
+    private com.android.app.exam_app_backend.repository.StudentGroupMemberRepository studentGroupMemberRepository;
+
+    @Autowired
+    private com.android.app.exam_app_backend.repository.UserRepository userRepository;
+
+    private Long testGroupId;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setUpTestGroup() {
+        if (testGroupId == null) {
+            com.android.app.exam_app_backend.entity.StudentGroup group = new com.android.app.exam_app_backend.entity.StudentGroup();
+            group.setName("Test Group " + System.currentTimeMillis());
+            group = studentGroupRepository.save(group);
+            testGroupId = group.getId();
+
+            com.android.app.exam_app_backend.entity.User student = userRepository.findByUsername("student1").orElse(null);
+            if (student != null) {
+                com.android.app.exam_app_backend.entity.StudentGroupMember member = new com.android.app.exam_app_backend.entity.StudentGroupMember();
+                member.setGroup(group);
+                member.setUser(student);
+                studentGroupMemberRepository.save(member);
+            }
+        }
+    }
+
     @Test
     void teacherCanCreateQuestion() throws Exception {
         String teacherToken = loginAndExtractToken("teacher1", "teacher123");
@@ -222,11 +251,14 @@ class BusinessPermissionIntegrationTests {
     private Long createScheduledExamAndGetId(String teacherToken) throws Exception {
         String startTime = "2029-01-15T09:00:00";
         String endTime = "2029-01-15T10:00:00";
+        String content = testGroupId != null
+                ? "{\"title\":\"Midterm\",\"durationMinutes\":60,\"scorePerQuestion\":1,\"startTime\":\"" + startTime + "\",\"endTime\":\"" + endTime + "\",\"groupIds\":[" + testGroupId + "]}"
+                : "{\"title\":\"Midterm\",\"durationMinutes\":60,\"scorePerQuestion\":1,\"startTime\":\"" + startTime + "\",\"endTime\":\"" + endTime + "\"}";
 
         MvcResult examResult = mockMvc.perform(post("/api/exams")
                         .header("Authorization", "Bearer " + teacherToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"title\":\"Midterm\",\"durationMinutes\":60,\"scorePerQuestion\":1,\"startTime\":\"" + startTime + "\",\"endTime\":\"" + endTime + "\"}"))
+                        .content(content))
                 .andExpect(status().isOk())
                 .andReturn();
 
@@ -242,10 +274,13 @@ class BusinessPermissionIntegrationTests {
     }
 
     private Long createExamAndGetId(String teacherToken) throws Exception {
+        String content = testGroupId != null
+                ? "{\"title\":\"Midterm\",\"durationMinutes\":60,\"scorePerQuestion\":1,\"groupIds\":[" + testGroupId + "]}"
+                : "{\"title\":\"Midterm\",\"durationMinutes\":60,\"scorePerQuestion\":1}";
         MvcResult examResult = mockMvc.perform(post("/api/exams")
                         .header("Authorization", "Bearer " + teacherToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"title\":\"Midterm\",\"durationMinutes\":60,\"scorePerQuestion\":1}"))
+                        .content(content))
                 .andExpect(status().isOk())
                 .andReturn();
 
