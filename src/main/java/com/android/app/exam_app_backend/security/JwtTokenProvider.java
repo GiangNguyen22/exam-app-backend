@@ -23,7 +23,7 @@ public class JwtTokenProvider {
     @Value("${jwt.secret:}")
     private String jwtSecret;
 
-    @Value("${jwt.expiration-ms:3600000}")
+    @Value("${jwt.expiration-ms:900000}")
     private long jwtExpirationInMs;
 
     @PostConstruct
@@ -42,7 +42,10 @@ public class JwtTokenProvider {
     }
 
     public String generateToken(Authentication authentication) {
-        String username = authentication.getName();
+        return generateTokenFromUsername(authentication.getName());
+    }
+
+    public String generateTokenFromUsername(String username) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpirationInMs);
 
@@ -62,6 +65,16 @@ public class JwtTokenProvider {
                 .getBody();
 
         return claims.getSubject();
+    }
+
+    public Date getExpirationDateFromJWT(String token) {
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(getSigningKey())
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+
+        return claims.getExpiration();
     }
 
     public boolean validateToken(String authToken) {

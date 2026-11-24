@@ -14,3 +14,8 @@ spring:
 jwt:
   secret: "test-secret-key-change-me-and-make-it-long-enough-for-hs256-signing"
   expiration-ms: 3600000
+
+app:
+  security:
+    rate-limit:
+      login-per-minute: 5000

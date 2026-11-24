@@ -22,7 +22,22 @@ public class GlobalExceptionHandler {
                         ApiResponse.builder()
                                 .success(false)
                                 .code(HttpStatus.UNAUTHORIZED.value())
-                                .message("Tài khoản của bạn đã bị khóa")
+                                .message(ex.getMessage() != null && !ex.getMessage().trim().isEmpty() ? ex.getMessage() : "Tài khoản của bạn đã bị khóa")
+                                .data(null)
+                                .build()
+                );
+    }
+
+    @ExceptionHandler(org.springframework.security.authentication.BadCredentialsException.class)
+    public ResponseEntity<ApiResponse<Object>> handleBadCredentialsException(
+            org.springframework.security.authentication.BadCredentialsException ex
+    ) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(
+                        ApiResponse.builder()
+                                .success(false)
+                                .code(HttpStatus.UNAUTHORIZED.value())
+                                .message(ex.getMessage() != null && !ex.getMessage().trim().isEmpty() ? ex.getMessage() : "Invalid username or password")
                                 .data(null)
                                 .build()
                 );
@@ -38,7 +53,7 @@ public class GlobalExceptionHandler {
                         ApiResponse.builder()
                                 .success(false)
                                 .code(HttpStatus.UNAUTHORIZED.value())
-                                .message("Invalid username or password")
+                                .message(ex.getMessage() != null && !ex.getMessage().trim().isEmpty() ? ex.getMessage() : "Invalid username or password")
                                 .data(null)
                                 .build()
                 );
