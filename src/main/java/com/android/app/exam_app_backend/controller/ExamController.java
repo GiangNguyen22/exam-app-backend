@@ -8,6 +8,7 @@ import com.android.app.exam_app_backend.payload.ExamQuestionResponse;
 import com.android.app.exam_app_backend.payload.ExamResponse;
 import com.android.app.exam_app_backend.payload.ExamSubmitRequest;
 import com.android.app.exam_app_backend.payload.ExamUpdateRequest;
+import com.android.app.exam_app_backend.payload.ExamVersionResponse;
 import com.android.app.exam_app_backend.service.ExamService;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -169,6 +170,41 @@ public class ExamController {
                 .code(HttpStatus.OK.value())
                 .message("Exam submitted")
                 .data(examService.submitExam(examId, request, authentication))
+                .build());
+    }
+
+    @PostMapping("/{examId}/submit-review")
+    public ResponseEntity<ApiResponse<ExamResponse>> submitExamForReview(@PathVariable Long examId,
+                                                                         Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.<ExamResponse>builder()
+                .success(true)
+                .code(HttpStatus.OK.value())
+                .message("Exam submitted for review")
+                .data(examService.submitExamForReview(examId, authentication))
+                .build());
+    }
+
+    @PostMapping("/{examId}/request-changes")
+    public ResponseEntity<ApiResponse<ExamResponse>> requestChangesForExam(@PathVariable Long examId,
+                                                                           @RequestBody(required = false) java.util.Map<String, String> body,
+                                                                           Authentication authentication) {
+        String comments = body != null ? body.get("comments") : null;
+        return ResponseEntity.ok(ApiResponse.<ExamResponse>builder()
+                .success(true)
+                .code(HttpStatus.OK.value())
+                .message("Exam changes requested")
+                .data(examService.requestChangesForExam(examId, comments, authentication))
+                .build());
+    }
+
+    @GetMapping("/{examId}/versions")
+    public ResponseEntity<ApiResponse<List<ExamVersionResponse>>> getExamVersions(@PathVariable Long examId,
+                                                                                  Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.<List<ExamVersionResponse>>builder()
+                .success(true)
+                .code(HttpStatus.OK.value())
+                .message("Exam versions retrieved")
+                .data(examService.getExamVersions(examId, authentication))
                 .build());
     }
 }

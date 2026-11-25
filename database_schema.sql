@@ -136,9 +136,30 @@ CREATE TABLE exams (
     show_answers_after_submit BOOLEAN DEFAULT FALSE,
     score_per_question DECIMAL(5, 2) DEFAULT 1.0,
     created_by BIGINT,
+    current_version_id BIGINT,
+    entity_version BIGINT DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (created_by) REFERENCES users(id)
 ) ENGINE=InnoDB;
+
+-- Bảng Phiên bản Đề thi (TASK-T2)
+CREATE TABLE exam_versions (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    exam_id BIGINT NOT NULL,
+    version_no INT NOT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'DRAFT',
+    notes TEXT,
+    integrity_tag VARCHAR(128),
+    entity_version BIGINT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_exam_version_no (exam_id, version_no),
+    INDEX idx_exam_versions_exam_id (exam_id),
+    INDEX idx_exam_versions_status (status),
+    FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+ALTER TABLE exams ADD CONSTRAINT fk_exams_current_version FOREIGN KEY (current_version_id) REFERENCES exam_versions(id) ON DELETE SET NULL;
 
 -- Bảng liên kết Đề thi - Câu hỏi
 CREATE TABLE exam_questions (

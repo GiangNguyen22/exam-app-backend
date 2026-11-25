@@ -27,12 +27,14 @@
 - Enum duoc map bang `@Enumerated(EnumType.STRING)`, khong dung ordinal.
 - Quan he JPA co owner ro rang; tranh eager fetch khong can thiet.
 - Khong doi ten cot/bang da dung trong production neu chua co migration plan.
+- **QUY TẮC DB CHANGELOG**: Mọi thay đổi liên quan đến cấu trúc CSDL (thêm/sửa/xóa bảng, cột, index, constraint, seed data) **BẮT BUỘC** phải được ghi chi tiết vào `DB_CHANGELOG.md` và kẹp script DDL/DML vào `dbChangeLog.sql`.
 
 ## 5) Coding convention
 - Su dung Lombok dong bo theo pattern hien tai (`@Getter/@Setter/@NoArgsConstructor` hoac `@Data` cho DTO don gian).
 - Ten class/service ro nghia nghiep vu, khong viet tat mo ho.
 - Khong commit code dead/commented-out; comment chi khi can giai thich logic kho.
 - Moi thay doi logic nghiep vu phai cap nhat tai lieu lien quan (`system_analysis_design.md` neu anh huong use case/chinh sach).
+- **QUY TẮC FEATURE CHANGELOG**: Mọi chức năng thêm mới, cải tiến hoặc sửa đổi logic **BẮT BUỘC** phải được ghi nhận chi tiết (mô tả chức năng, files sửa đổi, API contract, test cases) vào file `FEATURE_CHANGELOG.md`.
 
 ## 6) Testing va quality gate
 - Bat buoc co test cho logic quan trong:

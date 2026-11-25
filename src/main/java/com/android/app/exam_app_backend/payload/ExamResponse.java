@@ -22,6 +22,7 @@ public class ExamResponse {
     private Boolean shuffleAnswers;
     private Boolean showAnswersAfterSubmit;
     private String status;
+    private Integer versionNo;
     private List<Long> groupIds;
     private Integer totalQuestions;
 }

@@ -64,4 +64,19 @@ public class Exam extends BaseEntity {
                inverseJoinColumns = @JoinColumn(name = "group_id"))
     private Set<StudentGroup> groups = new HashSet<>();
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "current_version_id")
+    private ExamVersion currentVersion;
+
+    @OneToMany(mappedBy = "exam", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("versionNo DESC")
+    private java.util.List<ExamVersion> versions = new java.util.ArrayList<>();
+
+    @Version
+    @Column(name = "entity_version")
+    private Long entityVersion;
+
+    public com.android.app.exam_app_backend.entity.enums.ExamStatus getStatus() {
+        return currentVersion != null ? currentVersion.getStatus() : com.android.app.exam_app_backend.entity.enums.ExamStatus.DRAFT;
+    }
 }

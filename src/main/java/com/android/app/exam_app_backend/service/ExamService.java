@@ -4,6 +4,7 @@ import com.android.app.exam_app_backend.entity.Answer;
 import com.android.app.exam_app_backend.entity.Exam;
 import com.android.app.exam_app_backend.entity.ExamQuestion;
 import com.android.app.exam_app_backend.entity.ExamResult;
+import com.android.app.exam_app_backend.entity.ExamVersion;
 import com.android.app.exam_app_backend.entity.Question;
 import com.android.app.exam_app_backend.entity.StudentResponse;
 import com.android.app.exam_app_backend.entity.Subject;
@@ -12,6 +13,7 @@ import com.android.app.exam_app_backend.entity.User;
 import com.android.app.exam_app_backend.entity.enums.AuditResult;
 import com.android.app.exam_app_backend.entity.enums.Difficulty;
 import com.android.app.exam_app_backend.entity.enums.ExamResultStatus;
+import com.android.app.exam_app_backend.entity.enums.ExamStatus;
 import com.android.app.exam_app_backend.exception.ResourceNotFoundException;
 import com.android.app.exam_app_backend.payload.ExamCreateRequest;
 import com.android.app.exam_app_backend.payload.ExamGenerateRequest;
@@ -20,10 +22,12 @@ import com.android.app.exam_app_backend.payload.ExamQuestionResponse;
 import com.android.app.exam_app_backend.payload.ExamResponse;
 import com.android.app.exam_app_backend.payload.ExamSubmitRequest;
 import com.android.app.exam_app_backend.payload.ExamUpdateRequest;
+import com.android.app.exam_app_backend.payload.ExamVersionResponse;
 import com.android.app.exam_app_backend.repository.AnswerRepository;
 import com.android.app.exam_app_backend.repository.ExamQuestionRepository;
 import com.android.app.exam_app_backend.repository.ExamRepository;
 import com.android.app.exam_app_backend.repository.ExamResultRepository;
+import com.android.app.exam_app_backend.repository.ExamVersionRepository;
 import com.android.app.exam_app_backend.repository.QuestionRepository;
 import com.android.app.exam_app_backend.repository.StudentResponseRepository;
 import com.android.app.exam_app_backend.repository.SubjectRepository;
@@ -70,6 +74,7 @@ public class ExamService {
     private final AuditLogService auditLogService;
     private final StudentGroupMemberRepository studentGroupMemberRepository;
     private final StudentGroupRepository studentGroupRepository;
+    private final ExamVersionRepository examVersionRepository;
 
     public ExamService(ExamRepository examRepository,
                        ExamQuestionRepository examQuestionRepository,
@@ -82,7 +87,8 @@ public class ExamService {
                        StudentResponseRepository studentResponseRepository,
                        AuditLogService auditLogService,
                        StudentGroupMemberRepository studentGroupMemberRepository,
-                       StudentGroupRepository studentGroupRepository) {
+                       StudentGroupRepository studentGroupRepository,
+                       ExamVersionRepository examVersionRepository) {
         this.examRepository = examRepository;
         this.examQuestionRepository = examQuestionRepository;
         this.examResultRepository = examResultRepository;
@@ -95,6 +101,7 @@ public class ExamService {
         this.auditLogService = auditLogService;
         this.studentGroupMemberRepository = studentGroupMemberRepository;
         this.studentGroupRepository = studentGroupRepository;
+        this.examVersionRepository = examVersionRepository;
     }
 
     @Transactional(readOnly = true)
@@ -361,6 +368,7 @@ public class ExamService {
         User creator = userRepository.findByUsername(authentication.getName())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + authentication.getName()));
         verifyExamOwnership(exam, creator, PermissionConstants.QUESTION_CREATE);
+        checkExamModifiable(exam);
 
         Question question = new Question();
         question.setSubject(subject);
@@ -408,6 +416,7 @@ public class ExamService {
         User updater = userRepository.findByUsername(authentication.getName())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + authentication.getName()));
         verifyExamOwnership(examQuestion.getExam(), updater, PermissionConstants.QUESTION_UPDATE);
+        checkExamModifiable(examQuestion.getExam());
 
         Question question = examQuestion.getQuestion();
         question.setSubject(subject);
@@ -462,6 +471,15 @@ public class ExamService {
         }
 
         Exam saved = examRepository.save(exam);
+        ExamVersion initialVersion = ExamVersion.builder()
+                .exam(saved)
+                .versionNo(1)
+                .status(ExamStatus.DRAFT)
+                .notes("Khởi tạo đề thi")
+                .build();
+        initialVersion = examVersionRepository.save(initialVersion);
+        saved.setCurrentVersion(initialVersion);
+        saved = examRepository.save(saved);
         auditLogService.log(creator, PermissionConstants.EXAM_CREATE, "exam", saved.getId(), AuditResult.allow, "Exam created");
         return toResponse(saved);
     }
@@ -474,6 +492,7 @@ public class ExamService {
         User updater = userRepository.findByUsername(authentication.getName())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + authentication.getName()));
         verifyExamOwnership(exam, updater, PermissionConstants.EXAM_CREATE);
+        checkExamModifiable(exam);
 
         exam.setTitle(request.getTitle());
         exam.setDurationMinutes(request.getDurationMinutes());
@@ -503,6 +522,7 @@ public class ExamService {
         User currentUser = userRepository.findByUsername(authentication.getName())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + authentication.getName()));
         verifyExamOwnership(exam, currentUser, PermissionConstants.EXAM_DELETE);
+        checkExamModifiable(exam);
 
         examRepository.delete(exam);
         auditLogService.log(currentUser, PermissionConstants.EXAM_DELETE, "exam", examId, AuditResult.allow, "Exam deleted");
@@ -551,6 +571,16 @@ public class ExamService {
         }
 
         Exam savedExam = examRepository.save(exam);
+        ExamVersion initialVersion = ExamVersion.builder()
+                .exam(savedExam)
+                .versionNo(1)
+                .status(ExamStatus.DRAFT)
+                .notes("Tự động sinh đề thi")
+                .build();
+        initialVersion = examVersionRepository.save(initialVersion);
+        savedExam.setCurrentVersion(initialVersion);
+        savedExam = examRepository.save(savedExam);
+
         int orderIndex = 1;
         for (Question question : selectedQuestions) {
             ExamQuestion examQuestion = new ExamQuestion();
@@ -737,6 +767,9 @@ public class ExamService {
                 status = resolveStudentExamStatus(exam, student);
             }
         }
+        if (status == null) {
+            status = exam.getStatus() != null ? exam.getStatus().name() : "DRAFT";
+        }
 
         return ExamResponse.builder()
                 .id(exam.getId())
@@ -751,8 +784,9 @@ public class ExamService {
                 .shuffleAnswers(exam.getShuffleAnswers())
                 .showAnswersAfterSubmit(exam.getShowAnswersAfterSubmit())
                 .status(status)
+                .versionNo(exam.getCurrentVersion() != null ? exam.getCurrentVersion().getVersionNo() : 1)
                 .groupIds(groupIds)
-                .totalQuestions(exam.getExamQuestions().size())
+                .totalQuestions(exam.getExamQuestions() != null ? exam.getExamQuestions().size() : 0)
                 .build();
     }
 
@@ -791,6 +825,104 @@ public class ExamService {
                             + (exam.getCreatedBy() != null ? exam.getCreatedBy().getUsername() : "unknown"));
             throw new org.springframework.security.access.AccessDeniedException("Bạn không có quyền thao tác trên đề thi này");
         }
+    }
+
+    private void checkExamModifiable(Exam exam) {
+        if (exam.getCurrentVersion() != null && !exam.getCurrentVersion().getStatus().isModifiable()) {
+            throw new IllegalStateException("Đề thi đang ở trạng thái " + exam.getCurrentVersion().getStatus() + ", không thể chỉnh sửa nội dung hoặc câu hỏi.");
+        }
+    }
+
+    @Transactional
+    @PreAuthorize("@permissionEvaluator.hasPermission(authentication, T(com.android.app.exam_app_backend.security.PermissionConstants).EXAM_CREATE)")
+    public ExamResponse submitExamForReview(Long examId, Authentication authentication) {
+        Exam exam = examRepository.findById(examId)
+                .orElseThrow(() -> new ResourceNotFoundException("Exam not found: " + examId));
+        User user = userRepository.findByUsername(authentication.getName())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + authentication.getName()));
+        verifyExamOwnership(exam, user, PermissionConstants.EXAM_CREATE);
+
+        if (exam.getExamQuestions() == null || exam.getExamQuestions().isEmpty()) {
+            throw new IllegalStateException("Không thể nộp đề thi chưa có câu hỏi nào để duyệt.");
+        }
+
+        ExamVersion currentVersion = exam.getCurrentVersion();
+        if (currentVersion == null) {
+            currentVersion = ExamVersion.builder()
+                    .exam(exam)
+                    .versionNo(1)
+                    .status(ExamStatus.DRAFT)
+                    .notes("Khởi tạo đề thi")
+                    .build();
+            currentVersion = examVersionRepository.save(currentVersion);
+            exam.setCurrentVersion(currentVersion);
+        }
+
+        if (currentVersion.getStatus() != ExamStatus.DRAFT) {
+            throw new IllegalStateException("Đề thi chỉ có thể nộp duyệt khi đang ở trạng thái DRAFT.");
+        }
+
+        currentVersion.setStatus(ExamStatus.SUBMITTED);
+        currentVersion.setNotes("Nộp đề thi để phê duyệt");
+        examVersionRepository.save(currentVersion);
+
+        auditLogService.log(user, "EXAM_SUBMIT_REVIEW", "exam", exam.getId(), AuditResult.allow,
+                "Submitted exam v" + currentVersion.getVersionNo() + " for review");
+        return toResponse(exam, authentication);
+    }
+
+    @Transactional
+    @PreAuthorize("@permissionEvaluator.hasPermission(authentication, T(com.android.app.exam_app_backend.security.PermissionConstants).EXAM_CREATE)")
+    public ExamResponse requestChangesForExam(Long examId, String comments, Authentication authentication) {
+        Exam exam = examRepository.findById(examId)
+                .orElseThrow(() -> new ResourceNotFoundException("Exam not found: " + examId));
+        User user = userRepository.findByUsername(authentication.getName())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + authentication.getName()));
+
+        ExamVersion currentVersion = exam.getCurrentVersion();
+        if (currentVersion == null || (currentVersion.getStatus() != ExamStatus.SUBMITTED && currentVersion.getStatus() != ExamStatus.IN_REVIEW)) {
+            throw new IllegalStateException("Chỉ có thể yêu cầu sửa đổi khi đề thi đang ở trạng thái SUBMITTED hoặc IN_REVIEW.");
+        }
+
+        currentVersion.setStatus(ExamStatus.CHANGES_REQUESTED);
+        currentVersion.setNotes(comments != null ? comments : "Yêu cầu chỉnh sửa lại nội dung");
+        examVersionRepository.save(currentVersion);
+
+        ExamVersion nextVersion = ExamVersion.builder()
+                .exam(exam)
+                .versionNo(currentVersion.getVersionNo() + 1)
+                .status(ExamStatus.DRAFT)
+                .notes("Phiên bản mới sau khi có yêu cầu sửa đổi: " + (comments != null ? comments : ""))
+                .build();
+        nextVersion = examVersionRepository.save(nextVersion);
+        exam.setCurrentVersion(nextVersion);
+        Exam savedExam = examRepository.save(exam);
+
+        auditLogService.log(user, "EXAM_REQUEST_CHANGES", "exam", exam.getId(), AuditResult.allow,
+                "Requested changes for exam v" + currentVersion.getVersionNo() + ", created v" + nextVersion.getVersionNo());
+        return toResponse(savedExam, authentication);
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("@permissionEvaluator.hasPermission(authentication, T(com.android.app.exam_app_backend.security.PermissionConstants).EXAM_CREATE)")
+    public List<ExamVersionResponse> getExamVersions(Long examId, Authentication authentication) {
+        Exam exam = examRepository.findById(examId)
+                .orElseThrow(() -> new ResourceNotFoundException("Exam not found: " + examId));
+        User user = userRepository.findByUsername(authentication.getName())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + authentication.getName()));
+        verifyExamOwnership(exam, user, PermissionConstants.EXAM_CREATE);
+
+        return examVersionRepository.findByExamIdOrderByVersionNoDesc(examId).stream()
+                .map(v -> ExamVersionResponse.builder()
+                        .id(v.getId())
+                        .examId(exam.getId())
+                        .versionNo(v.getVersionNo())
+                        .status(v.getStatus() != null ? v.getStatus().name() : null)
+                        .notes(v.getNotes())
+                        .integrityTag(v.getIntegrityTag())
+                        .createdAt(v.getCreatedAt())
+                        .build())
+                .collect(Collectors.toList());
     }
 
     private ExamQuestionResponse toQuestionResponse(ExamQuestion examQuestion) {
