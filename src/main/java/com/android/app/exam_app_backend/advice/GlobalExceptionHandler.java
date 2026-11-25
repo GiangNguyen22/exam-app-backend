@@ -70,6 +70,16 @@ public class GlobalExceptionHandler {
                         .build());
     }
 
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAccessDenied(org.springframework.security.access.AccessDeniedException exception) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.<Void>builder()
+                .success(false)
+                .code(HttpStatus.FORBIDDEN.value())
+                .message(exception.getMessage())
+                .data(null)
+                .build());
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiResponse<Void>> handleIllegalArgument(IllegalArgumentException exception) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.<Void>builder()

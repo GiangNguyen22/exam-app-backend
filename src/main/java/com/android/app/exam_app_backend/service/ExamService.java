@@ -121,6 +121,8 @@ public class ExamService {
             return toResponse(exam, authentication);
         }
 
+        User currentUser = userRepository.findByUsername(authentication.getName()).orElse(null);
+        verifyExamOwnership(exam, currentUser, PermissionConstants.QUESTION_VIEW);
         return toResponse(exam, authentication);
     }
 
@@ -327,9 +329,14 @@ public class ExamService {
     public List<ExamQuestionResponse> getExamQuestions(Long examId, Authentication authentication) {
         Exam exam = examRepository.findById(examId)
                 .orElseThrow(() -> new ResourceNotFoundException("Exam not found: " + examId));
-        if (isStudent(authentication) && !isExamVisibleToStudent(exam, LocalDateTime.now(),
-                getUserGroupIds(authentication.getName()), authentication.getName())) {
-            throw new IllegalArgumentException("Exam is no longer available");
+        if (isStudent(authentication)) {
+            if (!isExamVisibleToStudent(exam, LocalDateTime.now(),
+                    getUserGroupIds(authentication.getName()), authentication.getName())) {
+                throw new IllegalArgumentException("Exam is no longer available");
+            }
+        } else {
+            User currentUser = userRepository.findByUsername(authentication.getName()).orElse(null);
+            verifyExamOwnership(exam, currentUser, PermissionConstants.QUESTION_VIEW);
         }
 
         // Học sinh không được nhận đáp án đúng / giải thích trong lúc làm bài.
@@ -353,6 +360,7 @@ public class ExamService {
         }
         User creator = userRepository.findByUsername(authentication.getName())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + authentication.getName()));
+        verifyExamOwnership(exam, creator, PermissionConstants.QUESTION_CREATE);
 
         Question question = new Question();
         question.setSubject(subject);
@@ -399,6 +407,7 @@ public class ExamService {
         }
         User updater = userRepository.findByUsername(authentication.getName())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + authentication.getName()));
+        verifyExamOwnership(examQuestion.getExam(), updater, PermissionConstants.QUESTION_UPDATE);
 
         Question question = examQuestion.getQuestion();
         question.setSubject(subject);
@@ -464,6 +473,7 @@ public class ExamService {
                 .orElseThrow(() -> new ResourceNotFoundException("Exam not found: " + examId));
         User updater = userRepository.findByUsername(authentication.getName())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + authentication.getName()));
+        verifyExamOwnership(exam, updater, PermissionConstants.EXAM_CREATE);
 
         exam.setTitle(request.getTitle());
         exam.setDurationMinutes(request.getDurationMinutes());
@@ -492,6 +502,7 @@ public class ExamService {
                 .orElseThrow(() -> new ResourceNotFoundException("Exam not found: " + examId));
         User currentUser = userRepository.findByUsername(authentication.getName())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + authentication.getName()));
+        verifyExamOwnership(exam, currentUser, PermissionConstants.EXAM_DELETE);
 
         examRepository.delete(exam);
         auditLogService.log(currentUser, PermissionConstants.EXAM_DELETE, "exam", examId, AuditResult.allow, "Exam deleted");
@@ -760,6 +771,26 @@ public class ExamService {
             return "CANCELLED";
         }
         return "NOT_STARTED";
+    }
+
+    private void verifyExamOwnership(Exam exam, User user, String action) {
+        if (user == null) {
+            throw new org.springframework.security.access.AccessDeniedException("Authentication required");
+        }
+        boolean isAdmin = user.getUserRoles() != null && user.getUserRoles().stream()
+                .anyMatch(ur -> ur.getRole() != null &&
+                        ("ADMIN".equalsIgnoreCase(ur.getRole().getName()) || "ROLE_ADMIN".equalsIgnoreCase(ur.getRole().getName())));
+        if (isAdmin) {
+            return;
+        }
+
+        boolean isOwner = exam.getCreatedBy() != null && exam.getCreatedBy().getId().equals(user.getId());
+        if (!isOwner) {
+            auditLogService.log(user, action, "exam", exam.getId(), AuditResult.deny,
+                    "Unauthorized IDOR access attempt to exam " + exam.getId() + " created by "
+                            + (exam.getCreatedBy() != null ? exam.getCreatedBy().getUsername() : "unknown"));
+            throw new org.springframework.security.access.AccessDeniedException("Bạn không có quyền thao tác trên đề thi này");
+        }
     }
 
     private ExamQuestionResponse toQuestionResponse(ExamQuestion examQuestion) {

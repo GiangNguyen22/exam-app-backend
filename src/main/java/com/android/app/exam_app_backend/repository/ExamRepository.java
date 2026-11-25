@@ -8,4 +8,5 @@ import java.util.List;
 
 public interface ExamRepository extends JpaRepository<Exam, Long> {
     List<Exam> findDistinctByGroups_IdIn(Collection<Long> groupIds);
+    List<Exam> findByCreatedById(Long createdById);
 }
