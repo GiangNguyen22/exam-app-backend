@@ -4,8 +4,8 @@ services:
     container_name: exam-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ExamApp@2026
-      MYSQL_DATABASE: school_exam_db
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-ExamApp@2026}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-school_exam_db}
     ports:
       - "3306:3306"
     volumes:
@@ -25,11 +25,11 @@ services:
     ports:
       - "8080:8080"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/school_exam_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Ho_Chi_Minh
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: ExamApp@2026
-      JWT_SECRET: "day-la-chuoi-jwt-secret-dai-64-ky-tu-thay-doi-truoc-khi-deploy-abc123"
-      JWT_EXPIRATION_MS: 3600000
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:mysql://mysql:3306/school_exam_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Ho_Chi_Minh}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-root}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-ExamApp@2026}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-3600000}
       SERVER_ADDRESS: 0.0.0.0
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash-lite}

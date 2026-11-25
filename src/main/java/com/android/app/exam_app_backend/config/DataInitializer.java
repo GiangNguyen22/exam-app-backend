@@ -29,6 +29,28 @@ import java.util.stream.Collectors;
 @Configuration
 public class DataInitializer {
 
+    @org.springframework.beans.factory.annotation.Value("${spring.profiles.active:dev}")
+    private String activeProfile;
+
+    @org.springframework.beans.factory.annotation.Value("${app.security.seed-test-users:true}")
+    private boolean seedTestUsers;
+
+    @org.springframework.beans.factory.annotation.Value("${app.security.default-admin-password:admin123}")
+    private String defaultAdminPassword;
+
+    @org.springframework.beans.factory.annotation.Value("${app.security.default-teacher-password:teacher123}")
+    private String defaultTeacherPassword;
+
+    @org.springframework.beans.factory.annotation.Value("${app.security.default-student-password:student123}")
+    private String defaultStudentPassword;
+
+    private boolean isTestDataSeedingAllowed() {
+        if ("prod".equalsIgnoreCase(activeProfile) || "production".equalsIgnoreCase(activeProfile)) {
+            return false;
+        }
+        return seedTestUsers;
+    }
+
     @Bean
     public CommandLineRunner createDefaultUser(UserRepository userRepository,
                                                RoleRepository roleRepository,
@@ -103,13 +125,15 @@ public class DataInitializer {
             roleRepository.save(teacherRole);
             roleRepository.save(studentRole);
 
-            User admin = upsertUser(userRepository, passwordEncoder, "admin", "admin123", "Administrator", "admin@example.com");
-            User teacher = upsertUser(userRepository, passwordEncoder, "teacher1", "teacher123", "Teacher One", "teacher1@example.com");
-            User student = upsertUser(userRepository, passwordEncoder, "student1", "student123", "Student One", "student1@example.com");
+            if (isTestDataSeedingAllowed()) {
+                User admin = upsertUser(userRepository, passwordEncoder, "admin", defaultAdminPassword, "Administrator", "admin@example.com");
+                User teacher = upsertUser(userRepository, passwordEncoder, "teacher1", defaultTeacherPassword, "Teacher One", "teacher1@example.com");
+                User student = upsertUser(userRepository, passwordEncoder, "student1", defaultStudentPassword, "Student One", "student1@example.com");
 
-            assignRoleIfMissing(userRoleRepository, admin, adminRole);
-            assignRoleIfMissing(userRoleRepository, teacher, teacherRole);
-            assignRoleIfMissing(userRoleRepository, student, studentRole);
+                assignRoleIfMissing(userRoleRepository, admin, adminRole);
+                assignRoleIfMissing(userRoleRepository, teacher, teacherRole);
+                assignRoleIfMissing(userRoleRepository, student, studentRole);
+            }
 
             if (subjectRepository.count() == 0) {
                 Subject subject = new Subject();

@@ -1,10 +1,12 @@
 spring:
   application:
     name: exam-app-backend
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/school_exam_db?connectionTimeZone=Asia%2FHo_Chi_Minh}
     username: ${SPRING_DATASOURCE_USERNAME:root}
-    password: ${SPRING_DATASOURCE_PASSWORD:giang1234@}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
 
   jackson:
     time-zone: Asia/Ho_Chi_Minh
@@ -26,7 +28,7 @@ server:
   address: ${SERVER_ADDRESS:127.0.0.1}
 
 jwt:
-  secret: ${JWT_SECRET:change-me-in-production-use-env-variable-come-my-way-pleaseifyouhavetodosuremy-cow-rabbit-is-safe}
+  secret: ${JWT_SECRET:}
   expiration-ms: ${JWT_EXPIRATION_MS:3600000}
 
 app:
@@ -38,3 +40,8 @@ app:
     gemini:
       api-key: ${GEMINI_API_KEY:}
       model: ${GEMINI_MODEL:gemini-3.5-flash-lite}
+  security:
+    seed-test-users: ${SEED_TEST_USERS:true}
+    default-admin-password: ${DEFAULT_ADMIN_PASSWORD:admin123}
+    default-teacher-password: ${DEFAULT_TEACHER_PASSWORD:teacher123}
+    default-student-password: ${DEFAULT_STUDENT_PASSWORD:student123}

@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.PostConstruct;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
@@ -19,11 +20,21 @@ import java.util.Date;
 @Component
 public class JwtTokenProvider {
 
-    @Value("${jwt.secret}")
+    @Value("${jwt.secret:}")
     private String jwtSecret;
 
-    @Value("${jwt.expiration-ms}")
+    @Value("${jwt.expiration-ms:3600000}")
     private long jwtExpirationInMs;
+
+    @PostConstruct
+    public void validateConfiguration() {
+        if (jwtSecret == null || jwtSecret.trim().isEmpty()) {
+            throw new IllegalStateException("FATAL: JWT_SECRET must be configured via environment variable or properties.");
+        }
+        if (jwtSecret.getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalStateException("FATAL: JWT_SECRET must be at least 32 characters long for secure HS256 signing.");
+        }
+    }
 
     private Key getSigningKey() {
         // use HMAC-SHA key from secret bytes
