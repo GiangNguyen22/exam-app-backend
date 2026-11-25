@@ -17,6 +17,8 @@ CREATE TABLE users (
     student_id VARCHAR(20) UNIQUE, -- MSSV cho học sinh
     employee_code VARCHAR(20) UNIQUE, -- Mã nhân viên cho giáo viên
     status ENUM('ACTIVE', 'LOCKED', 'PENDING') DEFAULT 'ACTIVE',
+    failed_login_attempts INT DEFAULT 0,
+    locked_until TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
@@ -197,3 +199,18 @@ ON student_responses(result_id);
 
 CREATE INDEX idx_questions_subject
 ON questions(subject_id);
+
+-- Bảng Refresh Tokens (Hỗ trợ Refresh Token Rotation & Thu hồi)
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    token_hash VARCHAR(64) NOT NULL UNIQUE,
+    expires_at TIMESTAMP NOT NULL,
+    revoked_at TIMESTAMP NULL,
+    replaced_by_token_hash VARCHAR(64) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_refresh_tokens_token_hash (token_hash),
+    INDEX idx_refresh_tokens_user_id (user_id)
+) ENGINE=InnoDB;
