@@ -36,7 +36,7 @@ Mỗi bản ghi thay đổi cần bao gồm các thông tin:
 | `TASK-S6-B` | Cặp Access Token (15p) & Refresh Token Rotation (7 ngày) | Backend & Android | 2026-11-24 | **Hoàn thành** |
 | `TASK-S7` | Chuẩn hóa Enum sự kiện giám sát phòng thi | Backend & Android | 2026-11-24 | **Hoàn thành** |
 | `TASK-T2` | Quản lý phiên bản đề (`ExamVersion`) & Khóa sửa khi gửi duyệt | Backend | 2026-11-24 | **Hoàn thành** |
-| `TASK-T6` | Mã hóa nội dung câu hỏi CSDL bằng AES-256-GCM | Backend | - | Chờ triển khai |
+| `TASK-T6` | Mã hóa nội dung câu hỏi CSDL bằng AES-256-GCM | Backend | 2026-11-24 | **Hoàn thành** |
 | `TASK-T1, T3`| Phê duyệt đề thi Maker-Checker (Role Approver) | Backend & Android | - | Chờ triển khai |
 | `TASK-T4` | Kiểm tra tính toàn vẹn đề thi bằng HMAC-SHA256 | Backend | - | Chờ triển khai |
 | `TASK-T5` | Quản lý phát hành theo lớp & Thu hồi đề thi khẩn cấp | Backend & Android | - | Chờ triển khai |
@@ -120,3 +120,41 @@ Mỗi bản ghi thay đổi cần bao gồm các thông tin:
 - Test: `ExamVersioningSecurityTest.java`
 - Kiểm tra toàn bộ vòng đời: Khởi tạo v1 DRAFT -> Thêm câu hỏi -> Nộp duyệt SUBMITTED -> Khóa sửa/thêm/xóa đề -> Yêu cầu sửa đổi sinh v2 DRAFT -> Tra cứu lịch sử phiên bản -> Sửa đổi ở v2 thành công.
 - Kết quả test: PASS 100%.
+
+### [TASK-T6] Mã hóa trường dữ liệu đề thi CSDL bằng AES-256-GCM (Database Field-Level Encryption)
+* **Ngày thực hiện**: 2026-11-24
+* **Người thực hiện**: Team
+* **Phạm vi tác động**: Backend
+
+#### 1. Mô tả chi tiết chức năng:
+- Áp dụng kỹ thuật mã hóa mức trường (Field-Level Encryption) cho các trường nhạy cảm của đề thi: `Question.content`, `Answer.content`, và `Answer.explanation`.
+- Khóa bảo mật: Sử dụng khóa AES 256-bit đọc từ biến môi trường `EXAM_ENCRYPTION_KEY` thông qua `CryptoKeyProvider`.
+- Thuật toán mã hóa: `AES/GCM/NoPadding` với IV ngẫu nhiên 96-bit (12 bytes) cho mỗi lần mã hóa sinh bằng `SecureRandom` và authentication tag 128-bit chống giả mạo / tampering.
+- Định dạng lưu CSDL: `ENC:` + Base64(`[IV: 12B][Ciphertext + Tag: 16B]`).
+- Tích hợp trong suốt qua JPA: `AesGcmAttributeConverter implements AttributeConverter<String, String>` tự động mã hóa trước khi INSERT/UPDATE vào CSDL và tự động giải mã khi SELECT entity.
+- Đảm bảo tương thích ngược: Nếu dữ liệu trong DB là bản ghi cũ chưa được mã hóa (không có tiền tố `ENC:`), converter tự động trả về chuỗi gốc mà không gây lỗi.
+
+#### 2. Danh sách file thay đổi:
+- **Tạo mới**:
+  - `src/main/java/com/android/app/exam_app_backend/security/crypto/CryptoKeyProvider.java`
+  - `src/main/java/com/android/app/exam_app_backend/security/crypto/AesGcmAttributeConverter.java`
+  - `src/test/java/com/android/app/exam_app_backend/ExamFieldEncryptionSecurityTest.java`
+- **Chỉnh sửa**:
+  - `src/main/java/com/android/app/exam_app_backend/entity/Question.java`
+  - `src/main/java/com/android/app/exam_app_backend/entity/Answer.java`
+  - `src/main/java/com/android/app/exam_app_backend/repository/AnswerRepository.java`
+  - `src/main/resources/application.yaml`
+  - `src/test/resources/application.yaml`
+  - `.env.example`
+  - `dbChangeLog.sql`
+  - `DB_CHANGELOG.md`
+  - `FEATURE_CHANGELOG.md`
+
+#### 3. Thay đổi API Contract:
+- Không thay đổi hợp đồng API bên ngoài. Dữ liệu trả về cho client vẫn là câu hỏi và đáp án hợp lệ, quá trình mã hóa/giải mã diễn ra hoàn toàn trong suốt tại tầng lưu trữ CSDL.
+
+#### 4. Kiểm thử & Đảm bảo chất lượng:
+- Test: `ExamFieldEncryptionSecurityTest.java`
+  - `testQuestionAndAnswerFieldEncryption`: Dùng Native SQL kiểm tra trực tiếp cột `content` trong DB: xác nhận bắt đầu bằng `ENC:`, không chứa plaintext; đồng thời kiểm tra JPA load entity trả về đúng plaintext ban đầu.
+  - `testBackwardCompatibilityWithLegacyPlaintext`: Chèn dữ liệu plaintext cũ vào DB, kiểm tra JPA load bình thường không bị lỗi giải mã.
+- Toàn bộ test suite backend: 39/39 tests PASS 100%.

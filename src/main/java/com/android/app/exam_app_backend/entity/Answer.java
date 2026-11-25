@@ -21,12 +21,14 @@ public class Answer {
     @JoinColumn(name = "question_id", nullable = false)
     private Question question;
 
+    @Convert(converter = com.android.app.exam_app_backend.security.crypto.AesGcmAttributeConverter.class)
     @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
 
     @Column(name = "is_correct")
     private Boolean isCorrect = false;
 
+    @Convert(converter = com.android.app.exam_app_backend.security.crypto.AesGcmAttributeConverter.class)
     @Column(columnDefinition = "TEXT")
     private String explanation;
 

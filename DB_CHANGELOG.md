@@ -24,6 +24,7 @@ Mỗi lần thay đổi cấu trúc DB, lập trình viên/AI cần ghi một m�
 | `v1.0.0` | 2026-10-01 | Team | Khởi tạo schema ban đầu (`database_schema.sql`): users, roles, permissions, questions, exams, audit_logs,... | **Đã áp dụng** |
 | `v1.1.0` | 2026-11-23 | Team | Bổ sung bảng `refresh_tokens`, trường khóa tài khoản `failed_login_attempts`, `locked_until` trong `users`. | **Đã áp dụng** |
 | `v1.2.0` | 2026-11-24 | Team | Bổ sung bảng `exam_versions` (version_no, status, integrity_tag) & khóa sửa đổi đề thi. | **Đã áp dụng** |
+| `v1.2.1` | 2026-11-24 | Team | Áp dụng mã hóa trường dữ liệu CSDL (AES-256-GCM) cho `Question` và `Answer`. | **Đã áp dụng** |
 | `v1.3.0` | - | - | Bổ sung bảng `exam_approvals` (Maker-Checker quy trình duyệt) & role `ROLE_APPROVER`. | **Chờ triển khai** |
 | `v1.4.0` | - | - | Bổ sung bảng `exam_releases` (phát hành theo lớp, khung giờ và thu hồi). | **Chờ triển khai** |
 
@@ -106,3 +107,16 @@ DROP TABLE IF EXISTS `exam_versions`;
 * **Entities JPA liên quan**:
   * Sửa: `com.android.app.exam_app_backend.entity.Exam`
   * Tạo mới: `com.android.app.exam_app_backend.entity.ExamVersion`, `com.android.app.exam_app_backend.entity.enums.ExamStatus`
+
+### [v1.2.1] - Mã hóa dữ liệu trường CSDL bằng AES-256-GCM (TASK-T6)
+* **Ngày**: 2026-11-24
+* **Task liên quan**: `TASK-T6`
+* **Mục đích**:
+  * Mã hóa nội dung câu hỏi (`Question.content`), đáp án (`Answer.content`), và giải thích (`Answer.explanation`) bằng AES-256-GCM.
+  * Ngăn ngừa rò rỉ đề thi khi dump database hoặc bị truy cập trái phép trực tiếp vào DB.
+  * Tương thích ngược: dữ liệu plaintext cũ vẫn đọc được bình thường.
+* **SQL DDL**:
+  * Không thay đổi DDL bảng (sử dụng cột `TEXT` sẵn có trong schema).
+* **Entities JPA liên quan**:
+  * Sửa: `com.android.app.exam_app_backend.entity.Question`, `com.android.app.exam_app_backend.entity.Answer`
+  * Tạo mới: `com.android.app.exam_app_backend.security.crypto.AesGcmAttributeConverter`, `com.android.app.exam_app_backend.security.crypto.CryptoKeyProvider`

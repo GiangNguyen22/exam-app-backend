@@ -17,5 +17,7 @@ jwt:
 
 app:
   security:
+    encryption:
+      exam-key: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     rate-limit:
       login-per-minute: 5000

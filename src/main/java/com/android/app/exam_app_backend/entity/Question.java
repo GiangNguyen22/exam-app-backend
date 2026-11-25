@@ -29,6 +29,7 @@ public class Question extends BaseEntity {
     @JoinColumn(name = "topic_id")
     private Topic topic;
 
+    @Convert(converter = com.android.app.exam_app_backend.security.crypto.AesGcmAttributeConverter.class)
     @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
 

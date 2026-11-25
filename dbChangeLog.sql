@@ -52,3 +52,10 @@ ALTER TABLE `exams`
     ADD COLUMN `current_version_id` BIGINT NULL AFTER `created_by`,
     ADD COLUMN `entity_version` BIGINT DEFAULT 0 AFTER `current_version_id`,
     ADD CONSTRAINT `fk_exams_current_version` FOREIGN KEY (`current_version_id`) REFERENCES `exam_versions` (`id`) ON DELETE SET NULL;
+
+-- -----------------------------------------------------------------------------
+-- [v1.2.1] 2026-11-24: Mã hóa trường CSDL câu hỏi & đáp án bằng AES-256-GCM (TASK-T6)
+-- -----------------------------------------------------------------------------
+-- Cơ chế mã hóa mức trường (Field-Level Encryption) sử dụng JPA AttributeConverter (AesGcmAttributeConverter)
+-- Các trường questions.content, answers.content, answers.explanation được mã hóa sang Base64 với tiền tố ENC:
+-- Sử dụng kiểu dữ liệu TEXT hiện tại trong CSDL MySQL, không cần thay đổi cấu trúc bảng DDL.

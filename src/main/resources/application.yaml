@@ -45,5 +45,7 @@ app:
     default-admin-password: ${DEFAULT_ADMIN_PASSWORD:admin123}
     default-teacher-password: ${DEFAULT_TEACHER_PASSWORD:teacher123}
     default-student-password: ${DEFAULT_STUDENT_PASSWORD:student123}
+    encryption:
+      exam-key: ${EXAM_ENCRYPTION_KEY:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
     rate-limit:
       login-per-minute: ${APP_RATE_LIMIT_LOGIN:20}
