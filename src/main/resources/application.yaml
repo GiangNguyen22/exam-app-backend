@@ -44,8 +44,11 @@ app:
     seed-test-users: ${SEED_TEST_USERS:true}
     default-admin-password: ${DEFAULT_ADMIN_PASSWORD:admin123}
     default-teacher-password: ${DEFAULT_TEACHER_PASSWORD:teacher123}
+    default-approver-password: ${DEFAULT_APPROVER_PASSWORD:approver123}
     default-student-password: ${DEFAULT_STUDENT_PASSWORD:student123}
     encryption:
       exam-key: ${EXAM_ENCRYPTION_KEY:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+    integrity:
+      hmac-key: ${INTEGRITY_SECRET_KEY:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210}
     rate-limit:
       login-per-minute: ${APP_RATE_LIMIT_LOGIN:20}

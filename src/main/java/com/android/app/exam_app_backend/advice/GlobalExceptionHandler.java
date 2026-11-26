@@ -1,6 +1,8 @@
 package com.android.app.exam_app_backend.advice;
 
 import com.android.app.exam_app_backend.common.dto.ApiResponse;
+import com.android.app.exam_app_backend.exception.ExamIntegrityCompromisedException;
+import com.android.app.exam_app_backend.exception.MakerCheckerViolationException;
 import com.android.app.exam_app_backend.exception.ResourceNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -100,6 +102,26 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.<Void>builder()
                 .success(false)
                 .code(HttpStatus.BAD_REQUEST.value())
+                .message(exception.getMessage())
+                .data(null)
+                .build());
+    }
+
+    @ExceptionHandler(MakerCheckerViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMakerCheckerViolation(MakerCheckerViolationException exception) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.<Void>builder()
+                .success(false)
+                .code(HttpStatus.FORBIDDEN.value())
+                .message(exception.getMessage())
+                .data(null)
+                .build());
+    }
+
+    @ExceptionHandler(ExamIntegrityCompromisedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleExamIntegrityCompromised(ExamIntegrityCompromisedException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.<Void>builder()
+                .success(false)
+                .code(HttpStatus.CONFLICT.value())
                 .message(exception.getMessage())
                 .data(null)
                 .build());

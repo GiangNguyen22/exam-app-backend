@@ -16,13 +16,13 @@ import com.android.app.exam_app_backend.repository.SubjectRepository;
 import com.android.app.exam_app_backend.repository.TopicRepository;
 import com.android.app.exam_app_backend.repository.UserRepository;
 import com.android.app.exam_app_backend.security.PermissionConstants;
+import com.android.app.exam_app_backend.security.annotation.RequirePermission;
 import com.android.app.exam_app_backend.service.AuditLogService;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -62,7 +62,7 @@ public class QuestionExcelImportService {
     }
 
     @Transactional
-    @PreAuthorize("@permissionEvaluator.hasPermission(authentication, T(com.android.app.exam_app_backend.security.PermissionConstants).QUESTION_IMPORT)")
+    @RequirePermission(PermissionConstants.QUESTION_IMPORT)
     public QuestionImportResponse importFromExcel(MultipartFile file, Authentication authentication) {
         if (file == null || file.isEmpty()) {
             return failure(List.of(error(0, null, "file", "File is empty")));

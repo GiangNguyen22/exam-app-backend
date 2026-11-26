@@ -33,6 +33,8 @@
 - Su dung Lombok dong bo theo pattern hien tai (`@Getter/@Setter/@NoArgsConstructor` hoac `@Data` cho DTO don gian).
 - Ten class/service ro nghia nghiep vu, khong viet tat mo ho.
 - Khong commit code dead/commented-out; comment chi khi can giai thich logic kho.
+- **QUY TẮC CONSTANTS**: Các chuỗi văn bản (text, thông báo, resource type, mã trạng thái) dùng lặp đi lặp lại hoặc có tính chuẩn hóa **BẮT BUỘC** phải khai báo vào file chứa hằng số (vd: `AppConstants.java`, `PermissionConstants.java`) thay vì viết trực tiếp chuỗi cố định (hardcoded magic strings).
+- **QUY TẮC PHÂN QUYỀN GỌN GÀNG (CUSTOM ANNOTATIONS)**: Ưu tiên sử dụng custom annotation `@RequirePermission(...)` và `@RequireAnyPermission(...)` thay vì chuỗi biểu thức `@PreAuthorize("@permissionEvaluator.hasPermission(...)")` dài dòng để code controller và service gọn gàng, rõ ràng, dễ bảo trì.
 - Moi thay doi logic nghiep vu phai cap nhat tai lieu lien quan (`system_analysis_design.md` neu anh huong use case/chinh sach).
 - **QUY TẮC FEATURE CHANGELOG**: Mọi chức năng thêm mới, cải tiến hoặc sửa đổi logic **BẮT BUỘC** phải được ghi nhận chi tiết (mô tả chức năng, files sửa đổi, API contract, test cases) vào file `FEATURE_CHANGELOG.md`.
 

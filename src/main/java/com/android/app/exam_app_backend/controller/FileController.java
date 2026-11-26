@@ -2,11 +2,12 @@ package com.android.app.exam_app_backend.controller;
 
 import com.android.app.exam_app_backend.common.dto.ApiResponse;
 import com.android.app.exam_app_backend.payload.FileUploadResponse;
+import com.android.app.exam_app_backend.security.PermissionConstants;
+import com.android.app.exam_app_backend.security.annotation.RequirePermission;
 import javax.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -29,7 +30,7 @@ public class FileController {
     private String uploadDir;
 
     @PostMapping("/upload")
-    @PreAuthorize("@permissionEvaluator.hasPermission(authentication, T(com.android.app.exam_app_backend.security.PermissionConstants).QUESTION_CREATE)")
+    @RequirePermission(PermissionConstants.QUESTION_CREATE)
     public ResponseEntity<ApiResponse<FileUploadResponse>> uploadFile(@RequestParam("file") MultipartFile file, HttpServletRequest request) {
         if (file == null || file.isEmpty()) {
             return ResponseEntity.badRequest()

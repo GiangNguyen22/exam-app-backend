@@ -20,6 +20,12 @@ public final class PermissionConstants {
     public static final String EXAM_DELETE = "exam:delete";
     public static final String EXAM_GENERATE = "exam:generate";
     public static final String EXAM_SUBMIT = "exam:submit";
+    public static final String EXAM_SUBMIT_REVIEW = "exam:submitReview";
+    public static final String EXAM_REVIEW = "exam:review";
+    public static final String EXAM_APPROVE = "exam:approve";
+    public static final String EXAM_REJECT = "exam:reject";
+    public static final String EXAM_RELEASE = "exam:release";
+    public static final String EXAM_REVOKE = "exam:revoke";
     public static final String EXAM_VIEW_RESULTS = "exam:viewResults";
     public static final String EXAM_VIEW_OWN_RESULTS = "exam:viewOwnResults";
 }

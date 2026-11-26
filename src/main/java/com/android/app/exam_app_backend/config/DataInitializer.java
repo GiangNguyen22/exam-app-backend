@@ -44,6 +44,9 @@ public class DataInitializer {
     @org.springframework.beans.factory.annotation.Value("${app.security.default-student-password:student123}")
     private String defaultStudentPassword;
 
+    @org.springframework.beans.factory.annotation.Value("${app.security.default-approver-password:approver123}")
+    private String defaultApproverPassword;
+
     private boolean isTestDataSeedingAllowed() {
         if ("prod".equalsIgnoreCase(activeProfile) || "production".equalsIgnoreCase(activeProfile)) {
             return false;
@@ -76,6 +79,12 @@ public class DataInitializer {
             permissionDescriptions.put(PermissionConstants.EXAM_DELETE, "Xóa đề thi");
             permissionDescriptions.put(PermissionConstants.EXAM_GENERATE, "Tự động sinh đề thi từ ngân hàng câu hỏi");
             permissionDescriptions.put(PermissionConstants.EXAM_SUBMIT, "Nộp bài thi của học sinh");
+            permissionDescriptions.put(PermissionConstants.EXAM_SUBMIT_REVIEW, "Gửi đề thi để phê duyệt");
+            permissionDescriptions.put(PermissionConstants.EXAM_REVIEW, "Xem và nhận xét đề thi trong quy trình phê duyệt");
+            permissionDescriptions.put(PermissionConstants.EXAM_APPROVE, "Phê duyệt đề thi");
+            permissionDescriptions.put(PermissionConstants.EXAM_REJECT, "Từ chối hoặc yêu cầu chỉnh sửa đề thi");
+            permissionDescriptions.put(PermissionConstants.EXAM_RELEASE, "Phát hành đề thi đã phê duyệt");
+            permissionDescriptions.put(PermissionConstants.EXAM_REVOKE, "Thu hồi đề thi đã phát hành");
             permissionDescriptions.put(PermissionConstants.EXAM_VIEW_RESULTS, "Xem báo cáo và kết quả thi của tất cả học sinh");
             permissionDescriptions.put(PermissionConstants.EXAM_VIEW_OWN_RESULTS, "Xem kết quả thi của chính học sinh đang đăng nhập");
 
@@ -102,6 +111,7 @@ public class DataInitializer {
 
             Role adminRole = upsertRole(roleRepository, "ADMIN", "System administrator");
             Role teacherRole = upsertRole(roleRepository, "TEACHER", "Teacher role");
+            Role approverRole = upsertRole(roleRepository, "APPROVER", "Exam approver role");
             Role studentRole = upsertRole(roleRepository, "STUDENT", "Student role");
 
             adminRole.setPermissions(new HashSet<>(permissionMap.values()));
@@ -114,7 +124,16 @@ public class DataInitializer {
                     permissionMap.get(PermissionConstants.EXAM_CREATE),
                     permissionMap.get(PermissionConstants.EXAM_DELETE),
                     permissionMap.get(PermissionConstants.EXAM_GENERATE),
+                    permissionMap.get(PermissionConstants.EXAM_SUBMIT_REVIEW),
+                    permissionMap.get(PermissionConstants.EXAM_RELEASE),
+                    permissionMap.get(PermissionConstants.EXAM_REVOKE),
                     permissionMap.get(PermissionConstants.EXAM_VIEW_RESULTS)
+            )));
+            approverRole.setPermissions(new HashSet<>(Arrays.asList(
+                    permissionMap.get(PermissionConstants.QUESTION_VIEW),
+                    permissionMap.get(PermissionConstants.EXAM_REVIEW),
+                    permissionMap.get(PermissionConstants.EXAM_APPROVE),
+                    permissionMap.get(PermissionConstants.EXAM_REJECT)
             )));
             studentRole.setPermissions(new HashSet<>(Arrays.asList(
                     permissionMap.get(PermissionConstants.EXAM_SUBMIT),
@@ -123,15 +142,18 @@ public class DataInitializer {
 
             roleRepository.save(adminRole);
             roleRepository.save(teacherRole);
+            roleRepository.save(approverRole);
             roleRepository.save(studentRole);
 
             if (isTestDataSeedingAllowed()) {
                 User admin = upsertUser(userRepository, passwordEncoder, "admin", defaultAdminPassword, "Administrator", "admin@example.com");
                 User teacher = upsertUser(userRepository, passwordEncoder, "teacher1", defaultTeacherPassword, "Teacher One", "teacher1@example.com");
+                User approver = upsertUser(userRepository, passwordEncoder, "approver1", defaultApproverPassword, "Approver One", "approver1@example.com");
                 User student = upsertUser(userRepository, passwordEncoder, "student1", defaultStudentPassword, "Student One", "student1@example.com");
 
                 assignRoleIfMissing(userRoleRepository, admin, adminRole);
                 assignRoleIfMissing(userRoleRepository, teacher, teacherRole);
+                assignRoleIfMissing(userRoleRepository, approver, approverRole);
                 assignRoleIfMissing(userRoleRepository, student, studentRole);
             }
 

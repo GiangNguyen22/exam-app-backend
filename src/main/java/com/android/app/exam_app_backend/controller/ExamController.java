@@ -1,14 +1,19 @@
 package com.android.app.exam_app_backend.controller;
 
 import com.android.app.exam_app_backend.common.dto.ApiResponse;
+import com.android.app.exam_app_backend.payload.ExamApprovalRequest;
+import com.android.app.exam_app_backend.payload.ExamApprovalResponse;
 import com.android.app.exam_app_backend.payload.ExamCreateRequest;
 import com.android.app.exam_app_backend.payload.ExamGenerateRequest;
+import com.android.app.exam_app_backend.payload.ExamIntegrityVerifyResponse;
 import com.android.app.exam_app_backend.payload.ExamQuestionCreateRequest;
 import com.android.app.exam_app_backend.payload.ExamQuestionResponse;
 import com.android.app.exam_app_backend.payload.ExamResponse;
 import com.android.app.exam_app_backend.payload.ExamSubmitRequest;
 import com.android.app.exam_app_backend.payload.ExamUpdateRequest;
 import com.android.app.exam_app_backend.payload.ExamVersionResponse;
+import com.android.app.exam_app_backend.service.ExamApprovalService;
+import com.android.app.exam_app_backend.service.ExamIntegrityService;
 import com.android.app.exam_app_backend.service.ExamService;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -24,9 +29,15 @@ import java.util.List;
 public class ExamController {
 
     private final ExamService examService;
+    private final ExamApprovalService examApprovalService;
+    private final ExamIntegrityService examIntegrityService;
 
-    public ExamController(ExamService examService) {
+    public ExamController(ExamService examService,
+                          ExamApprovalService examApprovalService,
+                          ExamIntegrityService examIntegrityService) {
         this.examService = examService;
+        this.examApprovalService = examApprovalService;
+        this.examIntegrityService = examIntegrityService;
     }
 
     @GetMapping
@@ -186,14 +197,75 @@ public class ExamController {
 
     @PostMapping("/{examId}/request-changes")
     public ResponseEntity<ApiResponse<ExamResponse>> requestChangesForExam(@PathVariable Long examId,
-                                                                           @RequestBody(required = false) java.util.Map<String, String> body,
+                                                                           @RequestBody(required = false) ExamApprovalRequest request,
                                                                            Authentication authentication) {
-        String comments = body != null ? body.get("comments") : null;
+        String comments = request != null ? request.resolveComment() : null;
         return ResponseEntity.ok(ApiResponse.<ExamResponse>builder()
                 .success(true)
                 .code(HttpStatus.OK.value())
                 .message("Exam changes requested")
                 .data(examService.requestChangesForExam(examId, comments, authentication))
+                .build());
+    }
+
+    @PostMapping("/{examId}/start-review")
+    public ResponseEntity<ApiResponse<ExamApprovalResponse>> startReview(@PathVariable Long examId,
+                                                                         @RequestBody(required = false) ExamApprovalRequest request,
+                                                                         Authentication authentication) {
+        String comment = request != null ? request.resolveComment() : null;
+        return ResponseEntity.ok(ApiResponse.<ExamApprovalResponse>builder()
+                .success(true)
+                .code(HttpStatus.OK.value())
+                .message("Exam review started")
+                .data(examApprovalService.startReview(examId, comment, authentication))
+                .build());
+    }
+
+    @PostMapping("/{examId}/approve")
+    public ResponseEntity<ApiResponse<ExamApprovalResponse>> approveExam(@PathVariable Long examId,
+                                                                         @RequestBody(required = false) ExamApprovalRequest request,
+                                                                         Authentication authentication) {
+        String comment = request != null ? request.resolveComment() : null;
+        return ResponseEntity.ok(ApiResponse.<ExamApprovalResponse>builder()
+                .success(true)
+                .code(HttpStatus.OK.value())
+                .message("Exam approved")
+                .data(examApprovalService.approveExam(examId, comment, authentication))
+                .build());
+    }
+
+    @PostMapping("/{examId}/reject")
+    public ResponseEntity<ApiResponse<ExamApprovalResponse>> rejectExam(@PathVariable Long examId,
+                                                                        @RequestBody(required = false) ExamApprovalRequest request,
+                                                                        Authentication authentication) {
+        String comment = request != null ? request.resolveComment() : null;
+        return ResponseEntity.ok(ApiResponse.<ExamApprovalResponse>builder()
+                .success(true)
+                .code(HttpStatus.OK.value())
+                .message("Exam rejected")
+                .data(examApprovalService.rejectExam(examId, comment, authentication))
+                .build());
+    }
+
+    @GetMapping("/{examId}/integrity")
+    public ResponseEntity<ApiResponse<ExamIntegrityVerifyResponse>> verifyExamIntegrityGet(@PathVariable Long examId,
+                                                                                         Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.<ExamIntegrityVerifyResponse>builder()
+                .success(true)
+                .code(HttpStatus.OK.value())
+                .message("Exam integrity verified")
+                .data(examIntegrityService.verifyExamIntegrity(examId, authentication))
+                .build());
+    }
+
+    @PostMapping("/{examId}/verify-integrity")
+    public ResponseEntity<ApiResponse<ExamIntegrityVerifyResponse>> verifyExamIntegrityPost(@PathVariable Long examId,
+                                                                                          Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.<ExamIntegrityVerifyResponse>builder()
+                .success(true)
+                .code(HttpStatus.OK.value())
+                .message("Exam integrity verified")
+                .data(examIntegrityService.verifyExamIntegrity(examId, authentication))
                 .build());
     }
 

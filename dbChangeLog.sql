@@ -59,3 +59,50 @@ ALTER TABLE `exams`
 -- Cơ chế mã hóa mức trường (Field-Level Encryption) sử dụng JPA AttributeConverter (AesGcmAttributeConverter)
 -- Các trường questions.content, answers.content, answers.explanation được mã hóa sang Base64 với tiền tố ENC:
 -- Sử dụng kiểu dữ liệu TEXT hiện tại trong CSDL MySQL, không cần thay đổi cấu trúc bảng DDL.
+
+-- -----------------------------------------------------------------------------
+-- [v1.3.0] 2026-11-25: Maker-Checker Approval & Role APPROVER (TASK-T1, T3, T4, T7)
+-- -----------------------------------------------------------------------------
+
+-- 1. Tạo bảng exam_approvals (append-only) kèm ràng buộc DB Maker-Checker
+CREATE TABLE IF NOT EXISTS `exam_approvals` (
+    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+    `exam_version_id` BIGINT NOT NULL,
+    `approver_id` BIGINT NOT NULL,
+    `creator_id` BIGINT NOT NULL,
+    `decision` VARCHAR(30) NOT NULL,
+    `comment` TEXT NULL,
+    `decided_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT `chk_exam_approvals_maker_checker` CHECK (`approver_id` <> `creator_id`),
+    CONSTRAINT `fk_exam_approvals_version` FOREIGN KEY (`exam_version_id`) REFERENCES `exam_versions` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_exam_approvals_approver` FOREIGN KEY (`approver_id`) REFERENCES `users` (`id`),
+    INDEX `idx_exam_approvals_version_id` (`exam_version_id`),
+    INDEX `idx_exam_approvals_approver_id` (`approver_id`),
+    INDEX `idx_exam_approvals_decision` (`decision`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 2. Seed các permission mới và role APPROVER (idempotent)
+INSERT IGNORE INTO `permissions` (`name`, `description`) VALUES
+    ('exam:submitReview', 'Gửi đề thi để phê duyệt'),
+    ('exam:review', 'Xem và nhận xét đề thi trong quy trình phê duyệt'),
+    ('exam:approve', 'Phê duyệt đề thi'),
+    ('exam:reject', 'Từ chối hoặc yêu cầu chỉnh sửa đề thi'),
+    ('exam:release', 'Phát hành đề thi đã phê duyệt'),
+    ('exam:revoke', 'Thu hồi đề thi đã phát hành');
+
+INSERT IGNORE INTO `roles` (`name`, `description`) VALUES
+    ('APPROVER', 'Exam approver role');
+
+INSERT IGNORE INTO `role_permissions` (`role_id`, `permission_id`)
+SELECT r.id, p.id FROM `roles` r, `permissions` p
+WHERE r.name = 'APPROVER' AND p.name IN ('question:view', 'exam:review', 'exam:approve', 'exam:reject');
+
+INSERT IGNORE INTO `role_permissions` (`role_id`, `permission_id`)
+SELECT r.id, p.id FROM `roles` r, `permissions` p
+WHERE r.name = 'TEACHER' AND p.name IN ('exam:submitReview', 'exam:release', 'exam:revoke');
+
+INSERT IGNORE INTO `role_permissions` (`role_id`, `permission_id`)
+SELECT r.id, p.id FROM `roles` r, `permissions` p
+WHERE r.name = 'ADMIN' AND p.name IN ('exam:submitReview', 'exam:review', 'exam:approve', 'exam:reject', 'exam:release', 'exam:revoke');

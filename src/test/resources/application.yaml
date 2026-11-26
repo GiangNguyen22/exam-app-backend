@@ -19,5 +19,7 @@ app:
   security:
     encryption:
       exam-key: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    integrity:
+      hmac-key: "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"
     rate-limit:
       login-per-minute: 5000

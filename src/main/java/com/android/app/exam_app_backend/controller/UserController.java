@@ -7,10 +7,10 @@ import com.android.app.exam_app_backend.payload.UserProfileResponse;
 import com.android.app.exam_app_backend.payload.UserRolesRequest;
 import com.android.app.exam_app_backend.payload.UserUpdateRequest;
 import com.android.app.exam_app_backend.security.PermissionConstants;
+import com.android.app.exam_app_backend.security.annotation.RequirePermission;
 import com.android.app.exam_app_backend.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -33,7 +33,7 @@ public class UserController {
         this.userService = userService;
     }
 
-    @PreAuthorize("@permissionEvaluator.hasPermission(authentication, '" + PermissionConstants.USER_VIEW + "')")
+    @RequirePermission(PermissionConstants.USER_VIEW)
     @GetMapping
     public ResponseEntity<ApiResponse<List<UserProfileResponse>>> getUsers() {
         return ResponseEntity.ok(ApiResponse.<List<UserProfileResponse>>builder()
@@ -54,7 +54,7 @@ public class UserController {
                 .build());
     }
 
-    @PreAuthorize("@permissionEvaluator.hasPermission(authentication, '" + PermissionConstants.USER_CREATE + "')")
+    @RequirePermission(PermissionConstants.USER_CREATE)
     @PostMapping
     public ResponseEntity<ApiResponse<UserProfileResponse>> createUser(
             @Valid @RequestBody UserCreateRequest request,
@@ -68,7 +68,7 @@ public class UserController {
                 .build());
     }
 
-    @PreAuthorize("@permissionEvaluator.hasPermission(authentication, '" + PermissionConstants.USER_UPDATE + "')")
+    @RequirePermission(PermissionConstants.USER_UPDATE)
     @PutMapping("/{userId}")
     public ResponseEntity<ApiResponse<UserProfileResponse>> updateUser(
             @PathVariable Long userId,
@@ -83,7 +83,7 @@ public class UserController {
                 .build());
     }
 
-    @PreAuthorize("@permissionEvaluator.hasPermission(authentication, '" + PermissionConstants.USER_LOCK + "')")
+    @RequirePermission(PermissionConstants.USER_LOCK)
     @PutMapping("/{userId}/lock")
     public ResponseEntity<ApiResponse<UserProfileResponse>> lockUser(@PathVariable Long userId) {
         return ResponseEntity.ok(ApiResponse.<UserProfileResponse>builder()
@@ -94,7 +94,7 @@ public class UserController {
                 .build());
     }
 
-    @PreAuthorize("@permissionEvaluator.hasPermission(authentication, '" + PermissionConstants.USER_LOCK + "')")
+    @RequirePermission(PermissionConstants.USER_LOCK)
     @PutMapping("/{userId}/unlock")
     public ResponseEntity<ApiResponse<UserProfileResponse>> unlockUser(@PathVariable Long userId) {
         return ResponseEntity.ok(ApiResponse.<UserProfileResponse>builder()
@@ -105,7 +105,7 @@ public class UserController {
                 .build());
     }
 
-    @PreAuthorize("@permissionEvaluator.hasPermission(authentication, '" + PermissionConstants.USER_UPDATE + "')")
+    @RequirePermission(PermissionConstants.USER_UPDATE)
     @PutMapping("/{userId}/roles")
     public ResponseEntity<ApiResponse<UserProfileResponse>> updateUserRoles(
             @PathVariable Long userId,

@@ -161,6 +161,25 @@ CREATE TABLE exam_versions (
 
 ALTER TABLE exams ADD CONSTRAINT fk_exams_current_version FOREIGN KEY (current_version_id) REFERENCES exam_versions(id) ON DELETE SET NULL;
 
+-- Bảng Lịch sử Phê duyệt Đề thi Maker-Checker (TASK-T3)
+CREATE TABLE exam_approvals (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    exam_version_id BIGINT NOT NULL,
+    approver_id BIGINT NOT NULL,
+    creator_id BIGINT NOT NULL,
+    decision VARCHAR(30) NOT NULL,
+    comment TEXT,
+    decided_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT chk_exam_approvals_maker_checker CHECK (approver_id <> creator_id),
+    INDEX idx_exam_approvals_version_id (exam_version_id),
+    INDEX idx_exam_approvals_approver_id (approver_id),
+    INDEX idx_exam_approvals_decision (decision),
+    FOREIGN KEY (exam_version_id) REFERENCES exam_versions(id) ON DELETE CASCADE,
+    FOREIGN KEY (approver_id) REFERENCES users(id)
+) ENGINE=InnoDB;
+
 -- Bảng liên kết Đề thi - Câu hỏi
 CREATE TABLE exam_questions (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,

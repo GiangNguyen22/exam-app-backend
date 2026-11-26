@@ -25,7 +25,7 @@ Mỗi lần thay đổi cấu trúc DB, lập trình viên/AI cần ghi một m�
 | `v1.1.0` | 2026-11-23 | Team | Bổ sung bảng `refresh_tokens`, trường khóa tài khoản `failed_login_attempts`, `locked_until` trong `users`. | **Đã áp dụng** |
 | `v1.2.0` | 2026-11-24 | Team | Bổ sung bảng `exam_versions` (version_no, status, integrity_tag) & khóa sửa đổi đề thi. | **Đã áp dụng** |
 | `v1.2.1` | 2026-11-24 | Team | Áp dụng mã hóa trường dữ liệu CSDL (AES-256-GCM) cho `Question` và `Answer`. | **Đã áp dụng** |
-| `v1.3.0` | - | - | Bổ sung bảng `exam_approvals` (Maker-Checker quy trình duyệt) & role `ROLE_APPROVER`. | **Chờ triển khai** |
+| `v1.3.0` | 2026-11-25 | Team | Bổ sung bảng `exam_approvals` (Maker-Checker CHECK constraint), role `APPROVER` & 6 permissions mới (`exam:submitReview`, `exam:review`, `exam:approve`, `exam:reject`, `exam:release`, `exam:revoke`). | **Đã áp dụng** |
 | `v1.4.0` | - | - | Bổ sung bảng `exam_releases` (phát hành theo lớp, khung giờ và thu hồi). | **Chờ triển khai** |
 
 ---
@@ -120,3 +120,38 @@ DROP TABLE IF EXISTS `exam_versions`;
 * **Entities JPA liên quan**:
   * Sửa: `com.android.app.exam_app_backend.entity.Question`, `com.android.app.exam_app_backend.entity.Answer`
   * Tạo mới: `com.android.app.exam_app_backend.security.crypto.AesGcmAttributeConverter`, `com.android.app.exam_app_backend.security.crypto.CryptoKeyProvider`
+
+### [v1.3.0] - Phê duyệt Maker-Checker, Role APPROVER & Permissions (TASK-T1, TASK-T3)
+* **Ngày**: 2026-11-25
+* **Task liên quan**: `TASK-T1`, `TASK-T3`, `TASK-T4`, `TASK-T7`
+* **Mục đích**:
+  * Lưu trữ lịch sử quyết định phê duyệt đề thi dạng append-only (`exam_approvals`).
+  * Áp đặt ràng buộc Maker-Checker (`approver_id <> creator_id`) ngay tại tầng CSDL bằng CHECK constraint.
+  * Bổ sung role `APPROVER` và các permission tách biệt luồng duyệt/phát hành/thu hồi đề.
+* **SQL DDL / DML**:
+```sql
+CREATE TABLE IF NOT EXISTS `exam_approvals` (
+    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+    `exam_version_id` BIGINT NOT NULL,
+    `approver_id` BIGINT NOT NULL,
+    `creator_id` BIGINT NOT NULL,
+    `decision` VARCHAR(30) NOT NULL,
+    `comment` TEXT NULL,
+    `decided_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT `chk_exam_approvals_maker_checker` CHECK (`approver_id` <> `creator_id`),
+    CONSTRAINT `fk_exam_approvals_version` FOREIGN KEY (`exam_version_id`) REFERENCES `exam_versions` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_exam_approvals_approver` FOREIGN KEY (`approver_id`) REFERENCES `users` (`id`),
+    INDEX `idx_exam_approvals_version_id` (`exam_version_id`),
+    INDEX `idx_exam_approvals_approver_id` (`approver_id`),
+    INDEX `idx_exam_approvals_decision` (`decision`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
+* **Rollback SQL**:
+```sql
+DROP TABLE IF EXISTS `exam_approvals`;
+```
+* **Entities JPA liên quan**:
+  * Tạo mới: `com.android.app.exam_app_backend.entity.ExamApproval`, `com.android.app.exam_app_backend.entity.enums.ApprovalDecision`
+  * Sửa: `com.android.app.exam_app_backend.entity.AuditLog` (bổ sung `@Immutable` và `@PreUpdate/@PreRemove`)

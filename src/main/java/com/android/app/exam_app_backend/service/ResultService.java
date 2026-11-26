@@ -17,7 +17,9 @@ import com.android.app.exam_app_backend.repository.ExamRepository;
 import com.android.app.exam_app_backend.repository.ExamResultRepository;
 import com.android.app.exam_app_backend.repository.StudentResponseRepository;
 import com.android.app.exam_app_backend.repository.UserRepository;
-import org.springframework.security.access.prepost.PreAuthorize;
+import com.android.app.exam_app_backend.security.PermissionConstants;
+import com.android.app.exam_app_backend.security.annotation.RequireAnyPermission;
+import com.android.app.exam_app_backend.security.annotation.RequirePermission;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,7 +56,7 @@ public class ResultService {
     }
 
     @Transactional(readOnly = true)
-    @PreAuthorize("@permissionEvaluator.hasAnyPermission(authentication, T(com.android.app.exam_app_backend.security.PermissionConstants).EXAM_VIEW_RESULTS, T(com.android.app.exam_app_backend.security.PermissionConstants).EXAM_VIEW_OWN_RESULTS)")
+    @RequireAnyPermission({PermissionConstants.EXAM_VIEW_RESULTS, PermissionConstants.EXAM_VIEW_OWN_RESULTS})
     public ExamResultResponse viewResult(Long examId, Authentication authentication) {
         ExamResult result = resolveResultForViewer(examId, authentication);
 
@@ -68,7 +70,7 @@ public class ResultService {
     }
 
     @Transactional(readOnly = true)
-    @PreAuthorize("@permissionEvaluator.hasAnyPermission(authentication, T(com.android.app.exam_app_backend.security.PermissionConstants).EXAM_VIEW_RESULTS, T(com.android.app.exam_app_backend.security.PermissionConstants).EXAM_VIEW_OWN_RESULTS)")
+    @RequireAnyPermission({PermissionConstants.EXAM_VIEW_RESULTS, PermissionConstants.EXAM_VIEW_OWN_RESULTS})
     public ExamResultDetailResponse viewResultDetail(Long examId, Authentication authentication) {
         Exam exam = examRepository.findById(examId)
                 .orElseThrow(() -> new ResourceNotFoundException("Exam not found: " + examId));
@@ -226,7 +228,7 @@ public class ResultService {
     }
 
     @Transactional(readOnly = true)
-    @PreAuthorize("@permissionEvaluator.hasAnyPermission(authentication, T(com.android.app.exam_app_backend.security.PermissionConstants).EXAM_VIEW_RESULTS, T(com.android.app.exam_app_backend.security.PermissionConstants).EXAM_VIEW_OWN_RESULTS)")
+    @RequireAnyPermission({PermissionConstants.EXAM_VIEW_RESULTS, PermissionConstants.EXAM_VIEW_OWN_RESULTS})
     public List<StudentExamResultResponse> viewStudentResults(Long studentId, Authentication authentication) {
         if (isStudent(authentication)) {
             User currentUser = userRepository.findByUsername(authentication.getName())
@@ -251,13 +253,13 @@ public class ResultService {
     }
 
     @Transactional(readOnly = true)
-    @PreAuthorize("@permissionEvaluator.hasAnyPermission(authentication, T(com.android.app.exam_app_backend.security.PermissionConstants).EXAM_VIEW_RESULTS, T(com.android.app.exam_app_backend.security.PermissionConstants).EXAM_VIEW_OWN_RESULTS)")
+    @RequireAnyPermission({PermissionConstants.EXAM_VIEW_RESULTS, PermissionConstants.EXAM_VIEW_OWN_RESULTS})
     public List<StudentExamResultResponse> viewStudentAllExamResults(Long studentId, Authentication authentication) {
         return viewStudentResults(studentId, authentication);
     }
 
     @Transactional(readOnly = true)
-    @PreAuthorize("@permissionEvaluator.hasPermission(authentication, T(com.android.app.exam_app_backend.security.PermissionConstants).EXAM_VIEW_RESULTS)")
+    @RequirePermission(PermissionConstants.EXAM_VIEW_RESULTS)
     public ExamReportResponse viewExamReport(Long examId) {
         Exam exam = examRepository.findById(examId)
                 .orElseThrow(() -> new ResourceNotFoundException("Exam not found: " + examId));

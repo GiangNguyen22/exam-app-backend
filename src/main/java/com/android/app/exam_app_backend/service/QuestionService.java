@@ -15,7 +15,7 @@ import com.android.app.exam_app_backend.repository.SubjectRepository;
 import com.android.app.exam_app_backend.repository.TopicRepository;
 import com.android.app.exam_app_backend.repository.UserRepository;
 import com.android.app.exam_app_backend.security.PermissionConstants;
-import org.springframework.security.access.prepost.PreAuthorize;
+import com.android.app.exam_app_backend.security.annotation.RequirePermission;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,7 +46,7 @@ public class QuestionService {
     }
 
     @Transactional(readOnly = true)
-    @PreAuthorize("@permissionEvaluator.hasPermission(authentication, T(com.android.app.exam_app_backend.security.PermissionConstants).QUESTION_VIEW)")
+    @RequirePermission(PermissionConstants.QUESTION_VIEW)
     public List<QuestionResponse> getQuestions() {
         return questionRepository.findAll(Sort.by(Sort.Direction.DESC, "id")).stream()
                 .map(this::toResponse)
@@ -54,7 +54,7 @@ public class QuestionService {
     }
 
     @Transactional
-    @PreAuthorize("@permissionEvaluator.hasPermission(authentication, T(com.android.app.exam_app_backend.security.PermissionConstants).QUESTION_CREATE)")
+    @RequirePermission(PermissionConstants.QUESTION_CREATE)
     public QuestionResponse createQuestion(QuestionCreateRequest request, Authentication authentication) {
         Subject subject = subjectRepository.findById(request.getSubjectId())
                 .orElseThrow(() -> new ResourceNotFoundException("Subject not found: " + request.getSubjectId()));
@@ -84,7 +84,7 @@ public class QuestionService {
     }
 
     @Transactional
-    @PreAuthorize("@permissionEvaluator.hasPermission(authentication, T(com.android.app.exam_app_backend.security.PermissionConstants).QUESTION_UPDATE)")
+    @RequirePermission(PermissionConstants.QUESTION_UPDATE)
     public QuestionResponse updateQuestion(Long questionId, QuestionCreateRequest request, Authentication authentication) {
         Question question = questionRepository.findById(questionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Question not found: " + questionId));
@@ -114,7 +114,7 @@ public class QuestionService {
     }
 
     @Transactional
-    @PreAuthorize("@permissionEvaluator.hasPermission(authentication, T(com.android.app.exam_app_backend.security.PermissionConstants).QUESTION_DELETE)")
+    @RequirePermission(PermissionConstants.QUESTION_DELETE)
     public void deleteQuestion(Long questionId, Authentication authentication) {
         Question question = questionRepository.findById(questionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Question not found: " + questionId));

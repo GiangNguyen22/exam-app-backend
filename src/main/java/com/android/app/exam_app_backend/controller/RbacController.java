@@ -5,10 +5,10 @@ import com.android.app.exam_app_backend.payload.PermissionResponse;
 import com.android.app.exam_app_backend.payload.RolePermissionsUpdateRequest;
 import com.android.app.exam_app_backend.payload.RoleResponse;
 import com.android.app.exam_app_backend.security.PermissionConstants;
+import com.android.app.exam_app_backend.security.annotation.RequirePermission;
 import com.android.app.exam_app_backend.service.RbacService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -39,7 +39,7 @@ public class RbacController {
                 .build());
     }
 
-    @PreAuthorize("@permissionEvaluator.hasPermission(authentication, 'question:create')")
+    @RequirePermission(PermissionConstants.QUESTION_CREATE)
     @GetMapping("/question-create-check")
     public ResponseEntity<ApiResponse<String>> questionCreateCheck() {
         return ResponseEntity.ok(ApiResponse.<String>builder()
@@ -50,7 +50,7 @@ public class RbacController {
                 .build());
     }
 
-    @PreAuthorize("@permissionEvaluator.hasPermission(authentication, '" + PermissionConstants.RBAC_MANAGE + "')")
+    @RequirePermission(PermissionConstants.RBAC_MANAGE)
     @GetMapping("/roles")
     public ResponseEntity<ApiResponse<List<RoleResponse>>> getRoles() {
         return ResponseEntity.ok(ApiResponse.<List<RoleResponse>>builder()
@@ -61,7 +61,7 @@ public class RbacController {
                 .build());
     }
 
-    @PreAuthorize("@permissionEvaluator.hasPermission(authentication, '" + PermissionConstants.RBAC_MANAGE + "')")
+    @RequirePermission(PermissionConstants.RBAC_MANAGE)
     @GetMapping("/permissions")
     public ResponseEntity<ApiResponse<List<PermissionResponse>>> getPermissions() {
         return ResponseEntity.ok(ApiResponse.<List<PermissionResponse>>builder()
@@ -72,7 +72,7 @@ public class RbacController {
                 .build());
     }
 
-    @PreAuthorize("@permissionEvaluator.hasPermission(authentication, '" + PermissionConstants.RBAC_MANAGE + "')")
+    @RequirePermission(PermissionConstants.RBAC_MANAGE)
     @PutMapping("/roles/{roleId}/permissions")
     public ResponseEntity<ApiResponse<RoleResponse>> updateRolePermissions(
             @PathVariable Long roleId,
